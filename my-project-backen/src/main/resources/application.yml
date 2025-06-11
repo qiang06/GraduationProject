@@ -1,1 +1,5 @@
-spring.application.name=my-project-backen
+spring:
+  security:
+    jwt:
+      key: abcdefijklm
+      expire: 7
