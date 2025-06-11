@@ -13,7 +13,14 @@ public record RestBean<T>(int code, T data, String message) {
         return success(null);
     }
 
-    public static <T> RestBean<T> failure(int code, String message) {
+    public static <T> RestBean<T> onUnauthorized(String message) {
+        return onUnauthorized(401, message);
+    }
+    public static <T> RestBean<T> forbidden(String message) {
+        return onUnauthorized(403, message);
+    }
+
+    public static <T> RestBean<T> onUnauthorized(int code, String message) {
         return new RestBean<>(code, null, message);
     }
 
