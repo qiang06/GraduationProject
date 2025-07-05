@@ -1,4 +1,13 @@
 spring:
+  mail:
+    host: smtp.163.com
+    username: hxq10082022@163.com
+    password: UGezB4SdQGepz3dT
+  rabbitmq:
+    addresses: localhost
+    username: guest
+    password: guest
+    virtual-host: /
   security:
     filter:
       order: -100
@@ -10,3 +19,6 @@ spring:
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
+  web:
+    verify:
+      mail-limit: 60
