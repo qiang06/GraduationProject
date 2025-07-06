@@ -1,7 +1,9 @@
 package com.myproject.service.impl;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.myproject.entity.dto.Account;
+import com.myproject.entity.vo.request.EmailRegisterVO;
 import com.myproject.mapper.AccountMapper;
 import com.myproject.service.AccountService;
 import com.myproject.utils.Const;
@@ -13,8 +15,11 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -31,6 +36,9 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
 
     @Resource
     StringRedisTemplate stringRedisTemplate;
+
+    @Resource
+    PasswordEncoder passwordEncoder;
 
     @Resource
     FlowUtils flow;
@@ -77,6 +85,32 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
 
     }
 
+    @Override
+    /**
+     * 邮件验证码注册账号操作，需要检查验证码是否正确以及邮箱、用户名是否存在重名
+     * @param info 注册基本信息
+     * @return 操作结果，null表示正常，否则为错误原因
+     */
+    
+    public String registerEmailAccount(EmailRegisterVO info){
+        String email = info.getEmail();
+        String code = stringRedisTemplate.opsForValue().get(Const.VERIFY_EMAIL_DATA + email);
+        if(code == null) return "请先获取验证码";
+        if(!code.equals(info.getCode())) return "验证码错误，请重新输入";
+        if(this.existsAccountByEmail(email)) return "该邮件地址已被注册";
+        String username = info.getUsername();
+        if(this.existsAccountByUsername(username)) return "该用户名已被他人使用，请重新更换";
+        String password = passwordEncoder.encode(info.getPassword());
+        Account account = new Account(null, info.getUsername(),
+                password, email, Const.ROLE_DEFAULT, new Date());
+        if(!this.save(account)) {
+            return "内部错误，注册失败";
+        } else {
+            this.deleteEmailVerifyCode(email);
+            return null;
+        }
+    }
+
 
     /**
      * 针对IP地址进行邮件验证码获取限流
@@ -87,5 +121,32 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
     private boolean verifyLimit(String address) {
         String key = Const.VERIFY_EMAIL_LIMIT + address;
         return flow.limitOnceCheck(key, verifyLimit);
+    }
+
+    /**
+     * 查询指定邮箱的用户是否已经存在
+     * @param email 邮箱
+     * @return 是否存在
+     */
+    private boolean existsAccountByEmail(String email){
+        return this.baseMapper.exists(Wrappers.<Account>query().eq("email", email));
+    }
+
+    /**
+     * 查询指定用户名的用户是否已经存在
+     * @param username 用户名
+     * @return 是否存在
+     */
+    private boolean existsAccountByUsername(String username){
+        return this.baseMapper.exists(Wrappers.<Account>query().eq("username", username));
+    }
+
+    /**
+     * 移除Redis中存储的邮件验证码
+     * @param email 电邮
+     */
+    private void deleteEmailVerifyCode(String email){
+        String key = Const.VERIFY_EMAIL_DATA + email;
+        stringRedisTemplate.delete(key);
     }
 }
