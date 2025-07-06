@@ -3,7 +3,9 @@ package com.myproject.service.impl;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.myproject.entity.dto.Account;
+import com.myproject.entity.vo.request.ConfirmResetVO;
 import com.myproject.entity.vo.request.EmailRegisterVO;
+import com.myproject.entity.vo.request.EmailResetVO;
 import com.myproject.mapper.AccountMapper;
 import com.myproject.service.AccountService;
 import com.myproject.utils.Const;
@@ -111,6 +113,38 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
         }
     }
 
+    /**
+     * 邮件验证码重置密码操作，需要检查验证码是否正确
+     * @param info 重置基本信息
+     * @return 操作结果，null表示正常，否则为错误原因
+     */
+    @Override
+    public String resetEmailAccountPassword(EmailResetVO info) {
+        String verify = resetConfirm(new ConfirmResetVO(info.getEmail(), info.getCode()));
+        if(verify != null) return verify;
+        String email = info.getEmail();
+        String password = passwordEncoder.encode(info.getPassword());
+        boolean update = this.update().eq("email", email).set("password", password).update();
+        if(update) {
+            this.deleteEmailVerifyCode(email);
+        }
+        return update ? null : "更新失败，请联系管理员";
+    }
+
+    /**
+     * 重置密码确认操作，验证验证码是否正确
+     * @param info 验证基本信息
+     * @return 操作结果，null表示正常，否则为错误原因
+     */
+    @Override
+    public String resetConfirm(ConfirmResetVO info) {
+        String email = info.getEmail();
+        String code = this.getEmailVerifyCode(email);
+        if(code == null) return "请先获取验证码";
+        if(!code.equals(info.getCode())) return "验证码错误，请重新输入";
+        return null;
+    }
+
 
     /**
      * 针对IP地址进行邮件验证码获取限流
@@ -148,5 +182,15 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
     private void deleteEmailVerifyCode(String email){
         String key = Const.VERIFY_EMAIL_DATA + email;
         stringRedisTemplate.delete(key);
+    }
+
+    /**
+     * 获取Redis中存储的邮件验证码
+     * @param email 电邮
+     * @return 验证码
+     */
+    private String getEmailVerifyCode(String email){
+        String key = Const.VERIFY_EMAIL_DATA + email;
+        return stringRedisTemplate.opsForValue().get(key);
     }
 }

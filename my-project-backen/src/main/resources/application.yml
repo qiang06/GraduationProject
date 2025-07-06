@@ -22,3 +22,7 @@ spring:
   web:
     verify:
       mail-limit: 60
+    flow:
+      period: 3
+      limit: 50
+      block: 30
