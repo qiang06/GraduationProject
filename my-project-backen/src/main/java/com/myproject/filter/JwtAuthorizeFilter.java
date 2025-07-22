@@ -1,6 +1,7 @@
 package com.myproject.filter;
 
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.myproject.utils.Const;
 import com.myproject.utils.JwtUtils;
 import jakarta.annotation.Resource;
 import jakarta.servlet.FilterChain;
@@ -36,7 +37,7 @@ public class JwtAuthorizeFilter extends OncePerRequestFilter {
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            request.setAttribute("id",utils.toId(jwt));
+            request.setAttribute(Const.ATTR_USER_ID,utils.toId(jwt));
 
 
         }

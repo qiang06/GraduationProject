@@ -185,6 +185,16 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
     }
 
     /**
+     * 根据用户ID查询用户信息
+     * @param userId 用户ID
+     * @return 用户信息
+     */
+    @Override
+    public Account findAccountById(int userId) {
+        return this.query().eq("id", userId).one();
+    }
+
+    /**
      * 获取Redis中存储的邮件验证码
      * @param email 电邮
      * @return 验证码
@@ -193,4 +203,7 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
         String key = Const.VERIFY_EMAIL_DATA + email;
         return stringRedisTemplate.opsForValue().get(key);
     }
+
+
+
 }
