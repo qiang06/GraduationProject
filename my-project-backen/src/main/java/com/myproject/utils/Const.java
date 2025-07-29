@@ -22,5 +22,7 @@ public final class Const {
     public final static String MQ_MAIL = "mail";
     //用户角色
     public final static String ROLE_DEFAULT = "user";
+    //用户名已被使用
+    public final static String USERNAME_HAS_BEEN_USED = "此用户名已被其他用户使用，请重新更换！";
 
 }

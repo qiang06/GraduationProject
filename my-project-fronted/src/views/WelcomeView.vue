@@ -2,7 +2,7 @@
     <div style="width: 100vw;height: 100vh;overflow: hidden;display: flex">
         <div style="flex: 1">
             <el-image style="width: 100%;height: 100%" fit="cover"
-                      src="http://hxqblog.cn/wp-content/uploads/2025/04/71875434_p0-3c0bae5cf7db4c0fab6986d02b8385fc-scaled.png"/>
+                      src="https://img1.baidu.com/it/u=724144359,2743880102&fm=253&fmt=auto&app=120&f=JPEG?w=1422&h=800"/>
         </div>
         <div class="welcome-title">
             <div style="font-size: 30px;font-weight: bold">欢迎来到我们的学习平台</div>

@@ -6,6 +6,7 @@ import com.myproject.entity.dto.Account;
 import com.myproject.entity.vo.request.ConfirmResetVO;
 import com.myproject.entity.vo.request.EmailRegisterVO;
 import com.myproject.entity.vo.request.EmailResetVO;
+import com.myproject.entity.vo.request.ModifyEmailVO;
 import com.myproject.mapper.AccountMapper;
 import com.myproject.service.AccountService;
 import com.myproject.utils.Const;
@@ -204,6 +205,21 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
         return stringRedisTemplate.opsForValue().get(key);
     }
 
+    @Override
+    public Object modifyEmail(int id, ModifyEmailVO vo) {
+        String email = vo.getEmail();
+        String code = getEmailVerifyCode(email);
+        if(code == null) return "请先获取验证码！";
+        if(!code.equals(vo.getCode())) return "验证码错误，请重新输入";
+        this.deleteEmailVerifyCode(email);
+        Account account = this.findAccountByNameOrEmail(email);
+        if(account != null && account.getId() != id)
+            return "该电子邮件已经被其他账号绑定，无法完成此操作！";
+        this.update()
+                .set("email", email)
+                .eq("id", id)
+                .update();
+        return null;
 
-
+    }
 }
