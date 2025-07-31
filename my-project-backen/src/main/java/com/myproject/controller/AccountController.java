@@ -6,9 +6,12 @@ import com.myproject.entity.dto.AccountDetails;
 import com.myproject.entity.vo.request.ChangePasswordVO;
 import com.myproject.entity.vo.request.DetailsSaveVO;
 import com.myproject.entity.vo.request.ModifyEmailVO;
+import com.myproject.entity.vo.request.PrivacySaveVO;
 import com.myproject.entity.vo.response.AccountDetailsVO;
+import com.myproject.entity.vo.response.AccountPrivacyVO;
 import com.myproject.entity.vo.response.AccountVO;
 import com.myproject.service.AccountDetailsService;
+import com.myproject.service.AccountPrivacyService;
 import com.myproject.service.AccountService;
 import com.myproject.utils.Const;
 import com.myproject.utils.ControllerUtils;
@@ -17,7 +20,6 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
-import java.util.function.Supplier;
 
 @RestController
 @RequestMapping("/api/user")
@@ -29,14 +31,17 @@ public class AccountController {
     private AccountDetailsService accountDetailsService;
     @Resource
     private ControllerUtils utils;
+    @Resource
+    private AccountPrivacyService privacyService;
 
     @GetMapping("/info")
     public RestBean<AccountVO> info(@RequestAttribute(Const.ATTR_USER_ID) int userId) {
-        Account  account = accountService.findAccountById(userId);
+        Account account = accountService.findAccountById(userId);
         return RestBean.success(account.asViewObject(AccountVO.class));
     }
+
     @GetMapping("/details")
-    public RestBean<AccountDetailsVO> details(@RequestAttribute(Const.ATTR_USER_ID) int userId){
+    public RestBean<AccountDetailsVO> details(@RequestAttribute(Const.ATTR_USER_ID) int userId) {
         /*
         1. **`accountDetailsService.findAccountDetailsById(userId)`**:
     - 调用 接口的 方法，传入 参数。 `AccountDetailsService``findAccountDetailsById``userId`
@@ -60,34 +65,42 @@ public class AccountController {
 
     @PostMapping("/save-details")
     public RestBean<Void> saveDetails(@RequestAttribute(Const.ATTR_USER_ID) int userId,
-                                      @RequestBody @Valid DetailsSaveVO vo){
+                                      @RequestBody @Valid DetailsSaveVO vo) {
 
         boolean success = accountDetailsService.saveAccountDetails(userId, vo);
-        return success ? RestBean.success() :RestBean.failure(400,Const.USERNAME_HAS_BEEN_USED);
+        return success ? RestBean.success() : RestBean.failure(400, Const.USERNAME_HAS_BEEN_USED);
     }
 
     @PostMapping("/modify-email")
     public RestBean<Void> modifyEmail(@RequestAttribute(Const.ATTR_USER_ID) int id,
-                                      @RequestBody @Valid ModifyEmailVO vo){
+                                      @RequestBody @Valid ModifyEmailVO vo) {
 
 
-        return this.messageHandle(()-> accountService.modifyEmail(id,vo).toString());
+        return utils.messageHandle(() -> accountService.modifyEmail(id, vo).toString());
 
     }
 
-    @PostMapping("change-password")
+    @PostMapping("/change-password")
     public RestBean<Void> changePassword(@RequestAttribute(Const.ATTR_USER_ID) int id,
                                          @RequestBody @Valid ChangePasswordVO vo) {
 
-        return this.messageHandle(()-> accountService.ChangePassword(id,vo));
+        return utils.messageHandle(() -> accountService.ChangePassword(id, vo));
 
     }
 
-    private RestBean<Void> messageHandle(Supplier<String> action) {
-        String message = action.get();
-        return message == null ? RestBean.success() : RestBean.failure(400, message);
+    @PostMapping("/save-privacy")
+    public RestBean<Void> savePrivacy(@RequestAttribute(Const.ATTR_USER_ID) int id,
+                                         @RequestBody @Valid PrivacySaveVO vo) {
+
+        privacyService.savePrivacy(id, vo);
+        return RestBean.success();
+
     }
+    @GetMapping("/privacy")
+    public RestBean<AccountPrivacyVO> Privacy(@RequestAttribute(Const.ATTR_USER_ID) int id) {
 
+    return RestBean.success(privacyService.accountPrivacy(id).asViewObject(AccountPrivacyVO.class));
 
+    }
 
 }
