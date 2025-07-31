@@ -173,7 +173,7 @@ function modifyEmail() {
 </script>
 
 <template>
-  <div style="display: flex">
+  <div style="display: flex;max-width: 950px;margin: auto">
 
     <div class="settings-left">
       <Card :icon="User" title="账号信息设置" desc="在这里编辑您的个人信息，您可以在隐私设置中选择是否展示这些信息"

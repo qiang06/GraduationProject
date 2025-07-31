@@ -198,7 +198,7 @@ const searchInput = reactive({
                     <span>个人信息设置</span>
                   </template>
                 </el-menu-item>
-                <el-menu-item>
+                <el-menu-item index="/index/privacy-setting">
                   <template #title>
                     <el-icon>
                       <Lock/>

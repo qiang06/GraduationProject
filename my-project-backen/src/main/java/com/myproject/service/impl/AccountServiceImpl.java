@@ -3,10 +3,7 @@ package com.myproject.service.impl;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.myproject.entity.dto.Account;
-import com.myproject.entity.vo.request.ConfirmResetVO;
-import com.myproject.entity.vo.request.EmailRegisterVO;
-import com.myproject.entity.vo.request.EmailResetVO;
-import com.myproject.entity.vo.request.ModifyEmailVO;
+import com.myproject.entity.vo.request.*;
 import com.myproject.mapper.AccountMapper;
 import com.myproject.service.AccountService;
 import com.myproject.utils.Const;
@@ -222,4 +219,18 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
         return null;
 
     }
+
+    @Override
+    public String ChangePassword(int id, ChangePasswordVO vo) {
+        String password = this.query().eq("id", id).one().getPassword();
+        if (!passwordEncoder.matches(vo.getPassword(),password))
+            return "原密码错误，请重新输入！";
+        boolean success = this.update()
+                .eq("id",id)
+                .set("password",passwordEncoder.encode(vo.getNew_password()))
+                .update();
+
+        return success ? null : "未知错误，请联系管理员";
+    }
+
 }
