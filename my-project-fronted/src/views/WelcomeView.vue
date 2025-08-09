@@ -1,8 +1,8 @@
 <template>
     <div style="width: 100vw;height: 100vh;overflow: hidden;display: flex">
         <div style="flex: 1">
-            <el-image style="width: 100%;height: 100%" fit="cover"
-                      src="http://14.103.241.155:8080/wp-content/uploads/2025/07/f0889cdd63c1a3b9dc7389a2dc81c6b-scaled.png"/>
+            <el-image fit="cover" src="http://14.103.241.155:8080/wp-content/uploads/2025/07/f0889cdd63c1a3b9dc7389a2dc81c6b-scaled.png"
+                      style="width: 100%;height: 100%"/>
         </div>
         <div class="welcome-title">
             <div style="font-size: 30px;font-weight: bold">欢迎来到我们的学习平台</div>
@@ -11,7 +11,7 @@
         </div>
         <div class="right-card">
             <router-view v-slot="{ Component }">
-                <transition name="el-fade-in-linear" mode="out-in">
+                <transition mode="out-in" name="el-fade-in-linear">
                     <component :is="Component" style="height: 100%"/>
                 </transition>
             </router-view>
@@ -25,9 +25,9 @@
 
 <style scoped>
 .right-card {
-  width: 400px;
-  z-index: 1;
-  background-color: var(--el-bg-color);
+    width: 400px;
+    z-index: 1;
+    background-color: var(--el-bg-color);
 }
 
 .welcome-title {

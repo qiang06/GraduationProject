@@ -26,3 +26,7 @@ spring:
       period: 3
       limit: 50
       block: 30
+  minio:
+    endpoint: 'http://localhost:9000'
+    username: 'minio'
+    password: 'password'
