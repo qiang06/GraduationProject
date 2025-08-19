@@ -5,8 +5,8 @@ spring:
     password: UGezB4SdQGepz3dT
   rabbitmq:
     addresses: localhost
-    username: guest
-    password: guest
+    username: admin
+    password: admin123
     virtual-host: /
   security:
     filter:
@@ -30,3 +30,10 @@ spring:
     endpoint: 'http://localhost:9000'
     username: 'minio'
     password: 'password'
+  data:
+    redis:
+      port: 6385
+      host: localhost
+  weather:
+    key: 3a2dd7429d5249bcbf7e36934dc267f1
+

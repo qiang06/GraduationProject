@@ -1,7 +1,7 @@
 <template>
     <div style="width: 100vw;height: 100vh;overflow: hidden;display: flex">
         <div style="flex: 1">
-            <el-image fit="cover" src="http://14.103.241.155:8080/wp-content/uploads/2025/07/f0889cdd63c1a3b9dc7389a2dc81c6b-scaled.png"
+            <el-image fit="cover" src="https://hxqblog.cn/wp-content/uploads/2025/08/dcaeb6081be419d157aff03979aa5b381805782637.jpg"
                       style="width: 100%;height: 100%"/>
         </div>
         <div class="welcome-title">

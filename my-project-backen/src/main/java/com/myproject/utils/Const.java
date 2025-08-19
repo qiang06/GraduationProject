@@ -24,5 +24,10 @@ public final class Const {
     public final static String ROLE_DEFAULT = "user";
     //用户名已被使用
     public final static String USERNAME_HAS_BEEN_USED = "此用户名已被其他用户使用，请重新更换！";
-
+    //论坛相关
+    public final static String FORUM_WEATHER_CACHE = "weather:cache:";
+    public final static String FORUM_IMAGE_COUNTER = "forum:image:";
+    public final static String FORUM_TOPIC_CREATE_COUNTER = "forum:topic:create:";
+    public final static String FORUM_TOPIC_COMMENT_COUNTER = "forum:topic:comment:";
+    public final static String FORUM_TOPIC_PREVIEW_CACHE = "topic:preview:";
 }
