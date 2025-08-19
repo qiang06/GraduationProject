@@ -25,7 +25,7 @@ public class ImageController {
                                         @RequestAttribute(Const.ATTR_USER_ID) int id,
                                         HttpServletResponse response) throws IOException {
         if(file.getSize() > 1024 * 1024 * 5)
-            return RestBean.failure(400, "头像图片不能大于5MB");
+            return RestBean.failure(400, "图片不能大于5MB");
         log.info("正在进行图片上传操作...");
         String url = service.uploadImage(file, id);
         if(url != null) {

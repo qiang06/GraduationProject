@@ -23,7 +23,7 @@ spring:
     verify:
       mail-limit: 60
     flow:
-      period: 3
+      period: 2
       limit: 50
       block: 30
   minio:

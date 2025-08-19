@@ -8,6 +8,8 @@ import Weather from '@/components/Weather.vue'
 
 import {ElMessage} from "element-plus";
 import {get} from "@/net";
+import TopicEditor from "@/components/TopicEditor.vue";
+
 
 const today = computed(() => {
     const date = new Date()
@@ -26,7 +28,7 @@ const weather = reactive({
 // 添加IP地址的响应式数据
 const ipAddress = ref('正在获取...')
 
-
+const editor = ref(false)
 
 const friendLinks = [
     {src: "https://www.itbaima.cn/image/welcome/outsource/image-2.webp", url: "https://www.itbaima.cn/zh-CN"},
@@ -97,7 +99,7 @@ onMounted(() => {
     <div style="display: flex;margin: 20px auto;gap: 20px;max-width: 900px">
         <div style="flex: 1">
             <light-card>
-                <div class="creat-topic">
+                <div class="creat-topic" @click="editor=true">
                     <el-icon>
                         <EditPen/>
                     </el-icon>
@@ -177,6 +179,7 @@ onMounted(() => {
             </div>
 
         </div>
+        <topic-editor :show="editor" @close="editor=false"/>
     </div>
 </template>
 

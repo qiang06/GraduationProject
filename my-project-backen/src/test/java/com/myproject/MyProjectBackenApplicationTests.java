@@ -13,17 +13,18 @@ import java.util.concurrent.TimeoutException;
 class MyProjectBackenApplicationTests {
 
 	@Test
-	void contextLoads() throws IOException, TimeoutException {
-		
-		ConnectionFactory factory = new ConnectionFactory();
-		factory.setHost("127.0.0.1"); // 或者实际 IP
-		factory.setPort(5672);
-		factory.setUsername("guest");
-		factory.setPassword("guest");
-		
-		try (Connection conn = factory.newConnection()) {
-			System.out.println("连接成功!");
+	public int[] twoSum(int[] nums, int target) {
+		for (int i = 0; i < nums.length; i++) {
+			for (int j = i + 1; j < nums.length; j++) {
+				if (nums[i] + nums[j] == target) {
+					return new int[]{i, j};
+				}
+			}
 		}
+		return new int[]{}; // Return an empty array if no solution is found
 	}
+	
+	
+	
 
 }

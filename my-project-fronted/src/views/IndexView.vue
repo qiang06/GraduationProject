@@ -93,6 +93,7 @@ const searchInput = reactive({
                     <el-scrollbar style="min-height: calc(100vh - 55px);">
                         <el-menu
                             :default-active="$route.path"
+                            :default-openeds="['1','2','3']"
                             router
                             style="height: calc(100vh - 55px);">
                             <el-sub-menu index="1">

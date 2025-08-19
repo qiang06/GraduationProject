@@ -7,6 +7,7 @@ import com.myproject.entity.dto.StoreImage;
 import com.myproject.mapper.AccountMapper;
 import com.myproject.mapper.ImageServiceMapper;
 import com.myproject.service.ImageService;
+import com.myproject.utils.Const;
 import com.myproject.utils.FlowUtils;
 import io.minio.*;
 import jakarta.annotation.Resource;
@@ -17,6 +18,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 
 import java.io.OutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.UUID;
 
 @Service
@@ -31,7 +34,8 @@ public class ImageServiceImpl extends ServiceImpl<ImageServiceMapper,StoreImage>
 
     @Resource
     FlowUtils flowUtils;
-
+    
+    private final SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd");
 
 
     @Override
@@ -60,29 +64,28 @@ public class ImageServiceImpl extends ServiceImpl<ImageServiceMapper,StoreImage>
 
     @Override
     public String uploadImage(MultipartFile file, int id) throws IOException {
-//        String key = Const.FORUM_IMAGE_COUNTER + id;
-//        if(!flowUtils.limitPeriodCounterCheck(key, 20, 3600))
-//            return null;
-//        String imageName = UUID.randomUUID().toString().replace("-", "");
-//        Date date = new Date();
-//        imageName = "/cache/" + format.format(date) + "/" + imageName;
-//        PutObjectArgs args = PutObjectArgs.builder()
-//                .bucket("study")
-//                .stream(file.getInputStream(), file.getSize(), -1)
-//                .object(imageName)
-//                .build();
-//        try {
-//            client.putObject(args);
-//            if(this.save(new StoreImage(id, imageName, date))) {
-//                return imageName;
-//            } else {
-//                return null;
-//            }
-//        } catch (Exception e) {
-//            log.error("图片上传出现问题: "+ e.getMessage(), e);
-//            return null;
-//        }
-        return null;
+        String key = Const.FORUM_IMAGE_COUNTER + id;
+        if(!flowUtils.limitPeriodCounterCheck(key, 20, 3600))
+            return null;
+        String imageName = UUID.randomUUID().toString().replace("-", "");
+        Date date = new Date();
+        imageName = "/cache/" + format.format(date) + "/" + imageName;
+        PutObjectArgs args = PutObjectArgs.builder()
+                .bucket("study")
+                .stream(file.getInputStream(), file.getSize(), -1)
+                .object(imageName)
+                .build();
+        try {
+            client.putObject(args);
+            if(this.save(new StoreImage(id, imageName, date))) {
+                return imageName;
+            } else {
+                return null;
+            }
+        } catch (Exception e) {
+            log.error("图片上传出现问题: "+ e.getMessage(), e);
+            return null;
+        }
     }
 
     @Override
