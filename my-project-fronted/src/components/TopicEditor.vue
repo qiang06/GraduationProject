@@ -24,7 +24,8 @@ const editor = reactive({
     type: null,
     title: '',
     text: '',
-    loading: false
+    loading: false,
+    types :[]
 })
 
 const emit = defineEmits(['close'])
@@ -38,13 +39,7 @@ defineProps({
 
 
 
-const types = [
-    {id: 1, name: '日常闲聊', desc: '在这里分享你的各种日常'},
-    {id: 2, name: '真诚交友', desc: '在校园里寻找与自己志同道合的朋友'},
-    {id: 3, name: '问题反馈', desc: '反馈你在校园里遇到的问题'},
-    {id: 4, name: '恋爱官宣', desc: '向大家展示你的恋爱成果'},
-    {id: 5, name: '踩坑记录', desc: '将你遇到的坑分享给大家，防止其他人再次入坑'}
-]
+
 
 Quill.register('modules/imageResize', ImageResize)
 Quill.register('modules/ImageExtend', ImageExtend)
@@ -133,8 +128,8 @@ function submitTopic() {
             </template>
             <div style="display: flex;gap: 10px">
                 <div style="width: 150px">
-                    <el-select placeholder="选择主题类型..." v-model="editor.type" >
-                        <el-option v-for="item in types" :value="item.id" :label="item.name">
+                    <el-select placeholder="选择主题类型..." v-model="editor.type" :disabled="!editor.types.length" >
+                        <el-option v-for="item in editor.types" :value="item.id" :label="item.name">
 
                         </el-option>
                     </el-select>

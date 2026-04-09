@@ -38,6 +38,7 @@ public class ObjectController {
             try {
                 service.fetchImageFromMinio(stream, imagePath);
                 response.setHeader("Cache-Control", "max-age=2592000");
+                response.setHeader("Cache-Control", "image/jpg");
             } catch (ErrorResponseException e) {
                 if(e.response().code() == 404) {
                     response.setStatus(404);

@@ -211,4 +211,7 @@ onMounted(() => {
         cursor: pointer;
     }
 }
+.dark .creat-topic {
+    background-color: #1c1c1c;
+}
 </style>
