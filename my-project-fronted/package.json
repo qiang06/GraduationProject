@@ -13,6 +13,7 @@
     "@vueup/vue-quill": "^1.2.0",
     "@vueuse/core": "^13.5.0",
     "axios": "^1.10.0",
+    "pinia": "^3.0.3",
     "element-plus": "^2.10.2",
     "quill-image-resize-vue": "^1.0.4",
     "quill-image-super-solution-module": "^2.0.1",

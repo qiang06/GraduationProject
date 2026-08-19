@@ -21,12 +21,8 @@ public class ObjectController {
 
     @GetMapping("/images/**")
     public void imageFetch(HttpServletRequest request, HttpServletResponse response) throws Exception {
-        response.setHeader("Content-Type", "image/jpg");
         this.fetchImage(request, response);
     }
-    
-    
-    
 
     private void fetchImage(HttpServletRequest request, HttpServletResponse response) throws Exception {
         String imagePath = request.getServletPath().substring(7);
@@ -37,8 +33,8 @@ public class ObjectController {
         } else {
             try {
                 service.fetchImageFromMinio(stream, imagePath);
+                response.setContentType(getContentType(imagePath));
                 response.setHeader("Cache-Control", "max-age=2592000");
-                response.setHeader("Cache-Control", "image/jpg");
             } catch (ErrorResponseException e) {
                 if(e.response().code() == 404) {
                     response.setStatus(404);
@@ -50,6 +46,11 @@ public class ObjectController {
         }
     }
     
-    
-    
+    private String getContentType(String imagePath) {
+        String lower = imagePath.toLowerCase();
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".gif")) return "image/gif";
+        if (lower.endsWith(".webp")) return "image/webp";
+        return "image/jpeg";
+    }
 }

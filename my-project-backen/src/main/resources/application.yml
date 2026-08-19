@@ -1,39 +1,39 @@
 spring:
   mail:
-    host: smtp.163.com
-    username: hxq10082022@163.com
-    password: UGezB4SdQGepz3dT
+    host: ${MAIL_HOST:smtp.163.com}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
   rabbitmq:
-    addresses: localhost
-    username: admin
-    password: admin123
-    virtual-host: /
+    addresses: ${RABBITMQ_ADDRESSES:localhost}
+    username: ${RABBITMQ_USERNAME:admin}
+    password: ${RABBITMQ_PASSWORD:admin123}
+    virtual-host: ${RABBITMQ_VHOST:/}
   security:
     filter:
       order: -100
     jwt:
-      key: abcdefijklm
-      expire: 7
+      key: ${JWT_SECRET:change-this-local-secret}
+      expire: ${JWT_EXPIRE_DAYS:7}
   datasource:
-    url: jdbc:mysql://localhost:3306/test
-    username: root
-    password: root
+    url: ${DB_URL:jdbc:mysql://localhost:3306/test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
   web:
     verify:
-      mail-limit: 60
+      mail-limit: ${MAIL_CODE_INTERVAL:60}
     flow:
-      period: 2
-      limit: 50
-      block: 30
+      period: ${FLOW_PERIOD:2}
+      limit: ${FLOW_LIMIT:50}
+      block: ${FLOW_BLOCK_SECONDS:30}
   minio:
-    endpoint: 'http://localhost:9000'
-    username: 'minio'
-    password: 'password'
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    username: ${MINIO_USERNAME:minio}
+    password: ${MINIO_PASSWORD:password}
   data:
     redis:
-      port: 6385
-      host: localhost
+      port: ${REDIS_PORT:6385}
+      host: ${REDIS_HOST:localhost}
+      password: ${REDIS_PASSWORD:}
   weather:
-    key: 3a2dd7429d5249bcbf7e36934dc267f1
-
+    key: ${WEATHER_API_KEY:}

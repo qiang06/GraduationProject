@@ -203,7 +203,7 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
     }
 
     @Override
-    public Object modifyEmail(int id, ModifyEmailVO vo) {
+    public String modifyEmail(int id, ModifyEmailVO vo) {
         String email = vo.getEmail();
         String code = getEmailVerifyCode(email);
         if(code == null) return "请先获取验证码！";

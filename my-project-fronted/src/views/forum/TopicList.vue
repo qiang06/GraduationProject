@@ -1,15 +1,15 @@
 <script setup>
-
 import LightCard from "@/components/LightCard.vue";
-import {Calendar, CollectionTag, EditPen, Link} from "@element-plus/icons-vue";
-
-import {computed,reactive,ref,onMounted} from 'vue'
+import {Calendar, ChatDotSquare, CollectionTag, EditPen, Link} from "@element-plus/icons-vue";
+import {computed, reactive, ref, onMounted, watch} from 'vue'
+import {useRoute, useRouter} from "vue-router";
 import Weather from '@/components/Weather.vue'
-
 import {ElMessage} from "element-plus";
-import {get} from "@/net";
+import {get, post} from "@/net";
 import TopicEditor from "@/components/TopicEditor.vue";
 
+const router = useRouter()
+const route = useRoute()
 
 const today = computed(() => {
     const date = new Date()
@@ -18,6 +18,7 @@ const today = computed(() => {
     const day = String(date.getDate()).padStart(2, '0')
     return `${year}年${month}月${day}日`
 })
+
 const weather = reactive({
     location: {},
     now: {},
@@ -25,10 +26,81 @@ const weather = reactive({
     success: false
 })
 
-// 添加IP地址的响应式数据
 const ipAddress = ref('正在获取...')
-
 const editor = ref(false)
+const topics = ref([])
+const loading = ref(false)
+const page = ref(1)
+const total = ref(0)
+const pageSize = 10
+const keyword = ref('')
+const type = ref('')
+
+function loadTopics() {
+    loading.value = true
+    keyword.value = route.query.keyword || ''
+    type.value = route.query.type || ''
+    const params = new URLSearchParams({ page: page.value, size: pageSize })
+    if (keyword.value.trim()) params.set('keyword', keyword.value.trim())
+    if (type.value) params.set('type', type.value)
+    get(`/api/forum/list?${params}`, (data) => {
+        topics.value = data.items || []
+        total.value = data.total || 0
+        loading.value = false
+    }, (message) => {
+        ElMessage.warning(message)
+        loading.value = false
+    })
+}
+
+function nextPage() {
+    page.value++
+    loadTopics()
+}
+
+function prevPage() {
+    if (page.value > 1) {
+        page.value--
+        loadTopics()
+    }
+}
+
+function handleSubmit(data) {
+    post('/api/forum/create', data, () => {
+        ElMessage.success('发帖成功！')
+        editor.value = false
+        page.value = 1
+        loadTopics()
+    }, (message) => {
+        ElMessage.warning(message)
+    })
+}
+
+function goDetail(id) {
+    router.push(`/index/topic/${id}`)
+}
+
+function formatTime(time) {
+    if (!time) return ''
+    const d = new Date(time)
+    const now = new Date()
+    const diff = now - d
+    if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前'
+    if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前'
+    if (diff < 172800000) return '昨天'
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    return `${mm}-${dd}`
+}
+
+onMounted(() => {
+    loadTopics()
+})
+
+watch(() => [route.query.keyword, route.query.type], () => {
+    page.value = 1
+    loadTopics()
+})
 
 const friendLinks = [
     {src: "https://www.itbaima.cn/image/welcome/outsource/image-2.webp", url: "https://www.itbaima.cn/zh-CN"},
@@ -59,40 +131,29 @@ navigator.geolocation.getCurrentPosition(position => {
     enableHighAccuracy: true
 })
 
-onMounted(() => {
-    get("/api/ip", // 确保路径以/开头
-        success => {
-            ipAddress.value = success;
-        },
-        (message, status, url) => {
-            console.error(`IP获取失败: ${message} | 状态码: ${status} | URL: ${url}`);
-
-            if (status === 401) {
-                ipAddress.value = "需要登录才能获取";
-            } else if (status === 429) {
-                ipAddress.value = "请求过于频繁";
-            } else {
-                ipAddress.value = "无法获取IP地址";
-            }
-        },
-        error => {
-            console.error('网络请求失败:', error.message);
-
-            if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
-                ipAddress.value = "请求超时";
-            } else {
-                ipAddress.value = "网络连接异常";
-            }
+get("/api/ip",
+    success => {
+        ipAddress.value = success.ip || JSON.stringify(success)
+    },
+    (message, status, url) => {
+        console.error(`IP获取失败: ${message} | 状态码: ${status} | URL: ${url}`);
+        if (status === 401) {
+            ipAddress.value = "需要登录才能获取"
+        } else if (status === 429) {
+            ipAddress.value = "请求过于频繁"
+        } else {
+            ipAddress.value = "无法获取IP地址"
         }
-    );
-});
-
-
-
-
-
-
-
+    },
+    error => {
+        console.error('网络请求失败:', error.message);
+        if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
+            ipAddress.value = "请求超时"
+        } else {
+            ipAddress.value = "网络连接异常"
+        }
+    }
+);
 </script>
 
 <template>
@@ -106,15 +167,32 @@ onMounted(() => {
                     点击发表主题...
                 </div>
             </light-card>
-            <light-card style="margin-top: 10px;height: 30px">
-
-            </light-card>
-            <div style="margin: 10px 0 ;display: flex;flex-direction: column;gap: 10px">
-                <light-card style="height: 150px" v-for="item in 10">
-
-                </light-card>
+            <div style="margin: 10px 0;display: flex;flex-direction: column;gap: 10px" v-loading="loading">
+                <div v-if="topics.length === 0 && !loading" style="text-align: center;color: grey;padding: 40px 0">
+                    还没有人发帖，快来发表第一个帖子吧！
+                </div>
+                <div v-for="topic in topics" :key="topic.id" class="topic-card" @click="goDetail(topic.id)">
+                    <light-card style="height: 100%">
+                        <div class="topic-header">
+                            <el-tag v-if="topic.top" type="danger" size="small" class="top-tag">置顶</el-tag>
+                            <div class="topic-title">{{ topic.title }}</div>
+                        </div>
+                        <div class="topic-meta">
+                            <span class="meta-item">
+                                <el-icon><ChatDotSquare/></el-icon>
+                                {{ topic.username }}
+                            </span>
+                            <span class="meta-item">{{ formatTime(topic.time) }}</span>
+                            <span class="meta-item">赞 {{ topic.likeCount || 0 }} · 藏 {{ topic.collectCount || 0 }}</span>
+                        </div>
+                    </light-card>
+                </div>
+                <div v-if="topics.length > 0" class="pagination">
+                    <el-button :disabled="page <= 1" @click="prevPage" size="small">上一页</el-button>
+                    <span style="margin: 0 10px;color: grey;font-size: 13px">第 {{ page }} 页</span>
+                    <el-button :disabled="page >= Math.ceil(total / pageSize)" @click="nextPage" size="small">下一页</el-button>
+                </div>
             </div>
-
         </div>
         <div style="width: 280px">
             <div style="position: sticky;top: 20px">
@@ -127,17 +205,14 @@ onMounted(() => {
                     </div>
                     <el-divider style="margin: 10px 0"/>
                     <div style="font-size: 14px;margin: 10px;color: grey">
-                        亲爱的同学们：
-
-                        为营造健康、文明、和谐的校园网络环境，保障论坛交流质量，现就校园论坛发帖规范及相关注意事项公告如下：
-
-                        ​​内容要求​​
-                        发帖内容需积极向上，与校园生活、学习、活动等相关，禁止发布广告、虚假信息、人身攻击或违反法律法规的内容。
-                        鼓励分享学习经验、活动资讯、校园趣事等正能量内容。
-                        ​​文明交流​​
-                        讨论时请保持理性，尊重他人观点，禁止恶意引战、谩骂或使用不文明语言。
-                        如遇争议，可联系版主或管理员协调处理。
-
+                        亲爱的同学们：<br/><br/>
+                        为营造健康、文明、和谐的校园网络环境，保障论坛交流质量，现就校园论坛发帖规范及相关注意事项公告如下：<br/><br/>
+                        <b>内容要求</b><br/>
+                        发帖内容需积极向上，与校园生活、学习、活动等相关，禁止发布广告、虚假信息、人身攻击或违反法律法规的内容。<br/>
+                        鼓励分享学习经验、活动资讯、校园趣事等正能量内容。<br/><br/>
+                        <b>文明交流</b><br/>
+                        讨论时请保持理性，尊重他人观点，禁止恶意引战、谩骂或使用不文明语言。<br/>
+                        如遇争议，可联系版主或管理员协调处理。<br/>
                         <el-divider style="margin: 10px 0"/>
                         2025年8月9日
                     </div>
@@ -159,10 +234,10 @@ onMounted(() => {
                     </div>
                     <div class="info-text">
                         <div>当前IP地址</div>
-                        <div>{{ipAddress.ip }}</div>
+                        <div>{{ ipAddress }}</div>
                     </div>
                 </light-card>
-                <div style="font-size: 14px ;margin-top: 10px;color: grey">
+                <div style="font-size: 14px;margin-top: 10px;color: grey">
                     <el-icon>
                         <Link/>
                     </el-icon>
@@ -173,13 +248,10 @@ onMounted(() => {
                     <div v-for="link in friendLinks" :key="link.url" class="friend-link" @click="openLink(link.url)">
                         <el-image :src="link.src" style="height: 100%"/>
                     </div>
-
-
                 </div>
             </div>
-
         </div>
-        <topic-editor :show="editor" @close="editor=false"/>
+        <topic-editor :show="editor" @close="editor=false" @submit="handleSubmit"/>
     </div>
 </template>
 
@@ -195,7 +267,6 @@ onMounted(() => {
     border-radius: 5px;
     overflow: hidden;
     cursor: pointer;
-
 }
 
 .creat-topic {
@@ -211,7 +282,56 @@ onMounted(() => {
         cursor: pointer;
     }
 }
+
 .dark .creat-topic {
     background-color: #1c1c1c;
+}
+
+.topic-card {
+    cursor: pointer;
+    transition: transform 0.15s ease;
+
+    &:hover {
+        transform: translateY(-1px);
+    }
+}
+
+.topic-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.topic-title {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.5;
+    flex: 1;
+}
+
+.top-tag {
+    flex-shrink: 0;
+    margin-right: 6px;
+}
+
+.topic-meta {
+    display: flex;
+    gap: 16px;
+    margin-top: 8px;
+    font-size: 13px;
+    color: grey;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 0;
 }
 </style>

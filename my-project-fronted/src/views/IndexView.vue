@@ -3,6 +3,7 @@ import {logout, get} from '@/net'
 import router from "@/router";
 import {useStore} from "@/store";
 import {ref, reactive} from 'vue'
+import {ElMessage} from "element-plus";
 import {
     Back,
     Bell,
@@ -27,6 +28,19 @@ function userLogout() {
     logout(() => router.push("/"))
 }
 
+function goUserSetting() {
+    router.push('/index/user-setting')
+}
+
+function showMessages() {
+    router.push('/index/notifications')
+}
+
+function searchTopics() {
+    const text = searchInput.text.trim()
+    router.push({ path: '/index', query: text ? { keyword: text } : {} })
+}
+
 const searchInput = reactive({
     type: "1",
     text: ""
@@ -43,7 +57,8 @@ const searchInput = reactive({
 
                 <div class="user-info" style="flex: 1">
                     <div style="flex: 1;padding: 0 20px;text-align: center">
-                        <el-input v-model="searchInput.text" placeholder="搜索论坛相关内容..."
+                        <el-input v-model="searchInput.text" placeholder="搜索帖子标题..."
+                                  clearable @keyup.enter="searchTopics"
                                   style="width: 100%;max-width: 500px ">
                             <template #prefix>
                                 <el-icon>
@@ -51,24 +66,20 @@ const searchInput = reactive({
                                 </el-icon>
                             </template>
                             <template #append>
-                                <el-select v-model="searchInput.type" style="width: 120px">
-                                    <el-option label="帖子广场" value="1"/>
-                                    <el-option label="校园活动" value="2"/>
-                                    <el-option label="教务通知" value="3"/>
-                                </el-select>
+                                <el-button :icon="Search" aria-label="搜索帖子" @click="searchTopics"/>
                             </template>
                         </el-input>
                     </div>
                     <el-dropdown>
                         <el-avatar :src="store.avatarUrl"/>
                         <template #dropdown>
-                            <el-dropdown-item>
+                            <el-dropdown-item @click="goUserSetting">
                                 <el-icon>
                                     <operation/>
                                 </el-icon>
                                 个人设置
                             </el-dropdown-item>
-                            <el-dropdown-item>
+                            <el-dropdown-item @click="showMessages">
                                 <el-icon>
                                     <message/>
                                 </el-icon>

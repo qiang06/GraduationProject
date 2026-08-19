@@ -21,7 +21,7 @@ public interface AccountService extends IService<Account>, UserDetailsService {
 
         Account findAccountById(int userId);
 
-        Object modifyEmail(int id, @Valid ModifyEmailVO vo);
+        String modifyEmail(int id, @Valid ModifyEmailVO vo);
 
         String ChangePassword(int id, @Valid ChangePasswordVO vo);
 }

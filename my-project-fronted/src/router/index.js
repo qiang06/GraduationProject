@@ -36,6 +36,16 @@ const router = createRouter({
                     component: () => import('@/views/forum/TopicList.vue')
                 },
                 {
+                    path: 'topic/:id',
+                    name: 'topic-detail',
+                    component: () => import('@/views/forum/TopicDetail.vue')
+                },
+                {
+                    path: 'notifications',
+                    name: 'notifications',
+                    component: () => import('@/views/NotificationView.vue')
+                },
+                {
                     path: 'user-setting',
                     name: 'user-setting',
                     component: () => import('@/views/settings/UserSetting.vue')

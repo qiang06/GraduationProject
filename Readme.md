@@ -1,26 +1,76 @@
 # 校园论坛
-采用SpringBoot3 + Vue3编写的前后端分离模版项目，集成多种技术栈，使用JWT校验方案。
-***
-### 后端功能与技术点
-用户注册、用户登录、重置密码等基础功能以及对应接口
-* 采用Mybatis-Plus作为持久层框架，使用更便捷
-* 采用Redis存储注册/重置操作验证码，带过期时间控制
-* 采用RabbitMQ积压短信发送任务，再由监听器统一处理
-* 采用SpringSecurity作为权限校验框架，手动整合Jwt校验方案
-* 采用Redis进行IP地址限流处理，防刷接口
-* 视图层对象和数据层对象分离，编写工具方法利用反射快速互相转换
-* 错误和异常页面统一采用JSON格式返回，前端处理响应更统一
-* 手动处理跨域，采用过滤器实现
-* 使用Swagger作为接口文档自动生成，已自动配置登录相关接口
-* 采用过滤器实现对所有请求自动生成雪花ID方便线上定位问题
-* 针对于多环境进行处理，开发环境和生产环境采用不同的配置
-* 日志中包含单次请求完整信息以及对应的雪花ID，支持文件记录
-* 项目整体结构清晰，职责明确，注释全面，开箱即用
 
-### 前端功能与技术点
-用户注册、用户登录、重置密码等界面，以及一个简易的主页
-* 采用Vue-Router作为路由
-* 采用Axios作为异步请求框架
-* 采用Element-Plus作为UI组件库
-* 使用VueUse适配深色模式切换
-* 使用unplugin-auto-import按需引入，减少打包后体积
+Spring Boot 3 + Vue 3 的校园论坛项目，包含 JWT 登录、帖子/评论、点赞、收藏、消息通知、Redis 限流、RabbitMQ 邮件和 MinIO 图片存储。
+
+## 启动依赖
+
+推荐使用根目录 Compose 启动基础设施：
+
+```bash
+docker compose up -d mysql redis rabbitmq minio
+```
+
+也可以手动启动：
+
+- MySQL: `localhost:3306`, database `test`
+- Redis: `localhost:6385`
+- RabbitMQ: `localhost:5672`
+- MinIO: `localhost:9000`
+
+## 数据库
+
+新数据库先执行 `my-project-backen/src/main/resources/test.sql`。
+
+已有项目数据库只执行增量脚本：
+
+`my-project-backen/src/main/resources/p1-incremental.sql`
+
+如果旧的 `db_notification` 表没有 `is_read` 字段，再执行：
+
+```sql
+ALTER TABLE db_notification ADD COLUMN is_read TINYINT(1) NOT NULL DEFAULT 0 AFTER time;
+```
+
+不要在已有数据的环境直接执行 `test.sql`，它包含 DROP TABLE。
+
+## 后端
+
+```bash
+cd my-project-backen
+mvn test
+mvn spring-boot:run
+```
+
+后端配置在 `src/main/resources/application.yml`，敏感配置支持环境变量覆盖。可复制根目录 `.env.example` 并在启动进程中导出对应变量。
+
+## 前端
+
+```bash
+cd my-project-fronted
+npm install
+npm run dev
+```
+
+复制 `.env.example` 为 `.env.local`，通过 `VITE_API_BASE_URL` 配置后端地址。生产构建：`npm run build`。
+
+## 已实现接口范围
+
+- 认证：登录、注册、验证码、重置密码、退出
+- 用户：资料、隐私、邮箱、密码、头像
+- 论坛：分类、分页列表、标题搜索、发帖、编辑、删除、详情
+- 评论：主评论、一级回复、权限删除、分页
+- 互动：点赞、收藏及计数
+- 通知：列表、未读数、单条已读、全部已读
+- 基础设施：Redis 限流、RabbitMQ 邮件、MinIO 图片
+
+## 测试账号
+
+不要把真实密码提交到仓库。测试账号可以通过现有注册流程创建，或在本地数据库中手动创建 BCrypt 密码记录。
+
+## 验证清单
+
+- `mvn test`
+- `mvn package`
+- `npm run build`
+- 启动 MySQL/Redis 后验证登录、分页、发帖、评论
+- 执行 P1 增量 SQL 后验证搜索、点赞、收藏、通知

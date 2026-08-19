@@ -76,7 +76,7 @@ public class AccountController {
                                       @RequestBody @Valid ModifyEmailVO vo) {
 
 
-        return utils.messageHandle(() -> accountService.modifyEmail(id, vo).toString());
+        return utils.messageHandle(() -> accountService.modifyEmail(id, vo));
 
     }
 

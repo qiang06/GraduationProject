@@ -20,7 +20,7 @@ public class AccountPrivacyServiceImpl extends ServiceImpl<AccountPrivacyMapper,
         boolean status = vo.isStatus();
         switch (vo.getType()) {
             case "phone" -> privacy.setPhone(status);
-            case "email" -> privacy.setEmail(status);
+            case "email", "emial" -> privacy.setEmail(status);
             case "gender" -> privacy.setGender(status);
             case "wx" -> privacy.setWx(status);
             case "qq" -> privacy.setQq(status);

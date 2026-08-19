@@ -12,11 +12,14 @@ const accessHeader = () => {
 
 const defaultError = (error) => {
     console.error(error)
-    const status = error.response.status
+    const status = error.response?.status
+    const message = error.response?.data?.message
     if (status === 429) {
-        ElMessage.error(error.response.data.message)
+        ElMessage.error(message || '请求频率过快，请稍后再试')
+    } else if (!error.response) {
+        ElMessage.error('无法连接服务器，请检查网络或后端服务')
     } else {
-        ElMessage.error('发生了一些错误，请联系管理员')
+        ElMessage.error(message || '发生了一些错误，请联系管理员')
     }
 }
 

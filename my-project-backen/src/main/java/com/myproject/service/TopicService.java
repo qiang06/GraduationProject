@@ -1,8 +1,11 @@
 package com.myproject.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.myproject.entity.vo.response.TopicTypeVO;
+import com.myproject.entity.dto.TopicType;
 
-public interface TopicService extends IService<TopicTypeVO> {
+import java.util.List;
 
+public interface TopicService extends IService<TopicType> {
+
+    List<TopicType> listTypes();
 }
