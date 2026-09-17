@@ -1,0 +1,9 @@
+package com.myproject.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.myproject.entity.dto.TopicInteractCollect;
+import org.apache.ibatis.annotations.Mapper;
+
+@Mapper
+public interface TopicInteractCollectMapper extends BaseMapper<TopicInteractCollect> {
+}
