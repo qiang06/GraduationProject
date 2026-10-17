@@ -283,6 +283,8 @@ npm run build                  # dist/
 `Card`、`LightCard`、`ColorDot`、`TopicTag`、`TopicEditor`（VueQuill + 图片缩放/超分插件）、`Weather`。
 管理端页面在 `views/admin/`：`AdminForum`（帖子 + 分类）、`ForumTopicAdmin`、`ForumTopicTypeAdmin`、`AdminUser`；布局在 `views/AdminView.vue`。
 `TopicTag` 从 `store.forum.types` 取颜色，列表和详情统一用它，不要再写成灰色 `el-tag`。
+帖子列表改为**无限滚动**：底部 sentinel + `IntersectionObserver` 自动加载下一页，底部状态显示「正在加载 / 加载更多 / 没有更多了 · 共 x 篇 / 重试」；
+筛选、搜索、发帖后 `resetList()` 清空列表并滚回顶部，不再使用上一页/下一页。
 帖子广场顶部有分类筛选 chips（「全部」+ `store.forum.types`），点击只改 `?type=id` 并复用同一个列表，不跳分类路由；
 `/index/lost` 等分类路由仍保留各自的标题、提示和发帖预设类型。
 「全部」是 **id=0 的伪分类**，由 `IndexView` 插在 `store.forum.types` 最前面，颜色是渐变
@@ -294,6 +296,8 @@ npm run build                  # dist/
 详情页评论数用 `commentTotal`（即 `CommentPageVO.allTotal`，含所有层级回复），分页用 `commentRootTotal`（顶层评论数），不要用 `comments.length`（只是当前页条数）。
 详情页左侧是作者面板：头像/用户名/性别/邮箱/微信/QQ/手机/简介；后端按 `db_account_privacy` 过滤后的 `null`
 统一显示「已隐藏或未填写」（`HIDDEN_TEXT`），不要显示成空白。列表卡片左上角也放作者头像/名字/时间（jwt-1.0 风格）。
+详情页标题滚出视口后，右侧顶部出现吸顶 banner（返回列表 + 分类/锁定标签 + 标题）；`.banner-slot` 用
+`position: sticky; height: 0` + `IntersectionObserver` 监听标题，避免出现/消失时把正文顶动。
 评论用 `CommentEditor.vue`（底部居中卡片，Quill HTML，和发帖共用 toolbar/图片上传）和 `CommentItem.vue`（递归组件，`replies` 嵌套）；
 卡片桌面端 820×420、16px 圆角、距底部 24px，移动端宽度 `calc(100vw - 24px)`。
 视觉缩进最多 3 层，第 4 层起不再缩进但保留「回复 @xxx」。顶层评论分页，子回复随顶层一次返回。

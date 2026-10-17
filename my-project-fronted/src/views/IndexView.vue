@@ -13,7 +13,7 @@ import {
     Location, Lock, Message, Monitor,
     Notification, Operation,
     Position,
-    School, Search,
+    Search,
     Umbrella, User
 } from "@element-plus/icons-vue";
 
@@ -172,15 +172,6 @@ const searchInput = reactive({
                                             <umbrella/>
                                         </el-icon>
                                         <span>表白墙</span>
-                                    </template>
-                                </el-menu-item>
-                                <el-menu-item>
-                                    <template #title>
-                                        <el-icon>
-                                            <school/>
-                                        </el-icon>
-                                        <span>海文考研</span>
-                                        <el-tag>合作机构</el-tag>
                                     </template>
                                 </el-menu-item>
                             </el-sub-menu>

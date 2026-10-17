@@ -5,7 +5,7 @@ import TopicTag from "@/components/TopicTag.vue";
 import CommentEditor from "@/components/CommentEditor.vue";
 import CommentItem from "@/components/CommentItem.vue";
 import {ArrowLeft, ChatDotSquare, CollectionTag, Delete, Edit, EditPen, Female, Male, Star} from "@element-plus/icons-vue";
-import {ref, computed, onMounted, reactive} from "vue";
+import {ref, computed, onMounted, onBeforeUnmount, nextTick, reactive, watch} from "vue";
 import {useRoute, useRouter} from "vue-router";
 import {useStore} from "@/store";
 import {
@@ -30,6 +30,20 @@ const topic = ref(null)
 const loading = ref(true)
 const editor = ref(false)
 const editData = ref(null)
+
+// 文章标题滑出视口后，顶部出现吸顶导航条
+const titleRef = ref(null)
+const showBanner = ref(false)
+let bannerObserver = null
+
+function setupBannerObserver() {
+    if (!titleRef.value || typeof IntersectionObserver === 'undefined') return
+    bannerObserver?.disconnect()
+    bannerObserver = new IntersectionObserver(([entry]) => {
+        showBanner.value = !entry.isIntersecting
+    }, {threshold: 0})
+    bannerObserver.observe(titleRef.value)
+}
 
 const comments = ref([])
 const commentTotal = ref(0)
@@ -252,10 +266,20 @@ function goBack() {
     router.push('/index')
 }
 
+watch(topic, (value) => {
+    showBanner.value = false
+    if (value) nextTick(setupBannerObserver)
+})
+
 onMounted(() => {
     loadDetail()
     loadInteraction()
     loadComments()
+    nextTick(setupBannerObserver)
+})
+
+onBeforeUnmount(() => {
+    bannerObserver?.disconnect()
 })
 </script>
 
@@ -290,13 +314,25 @@ onMounted(() => {
             </light-card>
         </aside>
         <div class="detail-main" v-loading="loading">
+            <div v-if="topic" class="banner-slot">
+                <transition name="el-fade-in-linear">
+                    <div v-show="showBanner" class="topic-banner">
+                        <el-button :icon="ArrowLeft" size="small" plain round @click="goBack">返回列表</el-button>
+                        <div class="topic-banner-main">
+                            <el-tag v-if="topic.locked === 1" type="warning" size="small">已锁定</el-tag>
+                            <topic-tag :type="topic.type"/>
+                            <span class="topic-banner-title">{{ topic.title }}</span>
+                        </div>
+                    </div>
+                </transition>
+            </div>
             <div v-if="topic" style="display: flex;flex-direction: column;gap: 10px">
                 <div class="back-bar" @click="goBack">
                     <el-icon><ArrowLeft/></el-icon>
                     返回帖子列表
                 </div>
                 <light-card>
-                    <div class="detail-title">{{ topic.title }}</div>
+                    <div ref="titleRef" class="detail-title">{{ topic.title }}</div>
                     <div class="detail-meta">
                         <span>{{ formatTime(topic.time) }}</span>
                         <el-divider direction="vertical"/>
@@ -430,6 +466,50 @@ onMounted(() => {
 .detail-main {
     flex: 1;
     min-width: 0;
+}
+
+/* 标题滚出视口后出现：slot 高度为 0 + sticky，避免出现/消失时把正文顶动 */
+.banner-slot {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    height: 0;
+}
+
+.topic-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    box-sizing: border-box;
+    background: var(--el-bg-color);
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .08);
+}
+
+.topic-banner-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.topic-banner-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 760px) {
+    .topic-banner-title {
+        font-size: 13px;
+    }
 }
 
 .author-panel {

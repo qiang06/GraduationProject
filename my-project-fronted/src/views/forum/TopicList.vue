@@ -1,7 +1,7 @@
 <script setup>
 import LightCard from "@/components/LightCard.vue";
-import {ArrowRightBold, Calendar, ChatDotSquare, CollectionTag, EditPen, Link, Star} from "@element-plus/icons-vue";
-import {computed, reactive, ref, onMounted, watch} from 'vue'
+import {ArrowRightBold, Calendar, ChatDotSquare, CollectionTag, EditPen, Link, Loading, Star} from "@element-plus/icons-vue";
+import {computed, reactive, ref, onMounted, onBeforeUnmount, onActivated, nextTick, watch} from 'vue'
 import {useRoute, useRouter} from "vue-router";
 import Weather from '@/components/Weather.vue'
 import {ElMessage} from "element-plus";
@@ -73,48 +73,119 @@ const editor = ref(false)
 const topics = ref([])
 const topTopics = ref([])
 const loading = ref(false)
+const loadingMore = ref(false)
+const hasMore = ref(true)
+const loadError = ref('')
 const page = ref(1)
 const total = ref(0)
 const pageSize = 10
 const keyword = ref('')
 const type = ref('')
+const listSentinel = ref(null)
 
-function loadTopics() {
-    loading.value = true
+let listObserver = null
+// 每次筛选/重置都递增，用来丢弃旧的异步响应，避免搜索时把旧列表拼回来
+let listGeneration = 0
+
+function buildListParams(targetPage) {
     keyword.value = route.query.keyword || ''
     type.value = route.query.type || ''
-    const params = new URLSearchParams({ page: page.value, size: pageSize })
+    const params = new URLSearchParams({page: String(targetPage), size: String(pageSize)})
     if (keyword.value.trim()) params.set('keyword', keyword.value.trim())
     if (type.value) params.set('type', type.value)
     if (typeCode.value) params.set('typeCode', typeCode.value)
-    apiForumList(params, (data) => {
-        topics.value = data.items || []
-        total.value = data.total || 0
+    return params
+}
+
+function scrollListToTop() {
+    const wrap = document.querySelector('.main-content-page .el-scrollbar__wrap')
+    if (wrap) wrap.scrollTop = 0
+}
+
+/**
+ * 统一的分页加载：
+ * - reset=true：清空列表，从第一页重新拉（筛选、搜索、发帖后）
+ * - reset=false：把下一页追加到列表尾部（无限滚动）
+ */
+function loadPage(targetPage, reset = false) {
+    if (!reset && (loading.value || loadingMore.value || !hasMore.value || loadError.value)) return
+
+    if (reset) {
+        listGeneration++
+        loading.value = true
+        loadingMore.value = false
+        loadError.value = ''
+        hasMore.value = true
+        page.value = 1
+        topics.value = []
+    } else {
+        loadingMore.value = true
+    }
+
+    const generation = listGeneration
+    apiForumList(buildListParams(targetPage), (data) => {
+        if (generation !== listGeneration) return
+        const items = data.items || []
+        if (reset) {
+            topics.value = items
+        } else {
+            const existing = new Set(topics.value.map(t => t.id))
+            topics.value.push(...items.filter(t => !existing.has(t.id)))
+        }
+        total.value = Number(data.total || 0)
+        // 后端异常返回空页但 hasNext=true 时也要停下，避免无限请求
+        hasMore.value = Boolean(data.hasNext) && items.length > 0
+        page.value = Number(data.page || targetPage) + 1
         loading.value = false
+        loadingMore.value = false
+        nextTick(() => {
+            // 首屏内容不够高时 sentinel 可能一直可见，继续补下一页直到撑满或没有更多
+            if (hasMore.value) maybeLoadMore()
+        })
     }, (message) => {
-        ElMessage.warning(message)
+        if (generation !== listGeneration) return
         loading.value = false
+        loadingMore.value = false
+        loadError.value = message || '加载失败'
+        ElMessage.warning(message)
     })
 }
 
-function nextPage() {
-    page.value++
-    loadTopics()
+function maybeLoadMore() {
+    if (!hasMore.value || loading.value || loadingMore.value || loadError.value) return
+    const el = listSentinel.value
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    // 提前 300px 触发，滚动到底前就开始加载
+    if (rect.top <= window.innerHeight + 300 && rect.bottom >= 0) {
+        loadPage(page.value, false)
+    }
 }
 
-function prevPage() {
-    if (page.value > 1) {
-        page.value--
-        loadTopics()
-    }
+function retryLoadMore() {
+    loadError.value = ''
+    loadPage(page.value, false)
+}
+
+function resetList() {
+    scrollListToTop()
+    loadPage(1, true)
+}
+
+function setupListObserver() {
+    if (!listSentinel.value || typeof IntersectionObserver === 'undefined') return
+    listObserver?.disconnect()
+    listObserver = new IntersectionObserver((entries) => {
+        if (entries[0]?.isIntersecting) maybeLoadMore()
+    }, {rootMargin: '300px 0px'})
+    listObserver.observe(listSentinel.value)
 }
 
 function handleSubmit(data) {
     apiForumCreate(data, () => {
         ElMessage.success('发帖成功！')
         editor.value = false
-        page.value = 1
-        loadTopics()
+        resetList()
     }, (message) => {
         ElMessage.warning(message)
     })
@@ -155,13 +226,22 @@ function formatTime(time) {
 }
 
 onMounted(() => {
-    loadTopics()
+    loadPage(1, true)
     apiForumTopTopics(data => topTopics.value = data || [])
+    nextTick(setupListObserver)
+})
+
+// keep-alive 回来时如果底部 sentinel 仍然可见，补一次加载
+onActivated(() => {
+    nextTick(maybeLoadMore)
+})
+
+onBeforeUnmount(() => {
+    listObserver?.disconnect()
 })
 
 watch(() => [route.query.keyword, route.query.type, route.meta.typeCode, route.path], () => {
-    page.value = 1
-    loadTopics()
+    resetList()
 })
 
 const friendLinks = [
@@ -404,11 +484,23 @@ apiForumIp(
                         </div>
                     </light-card>
                 </div>
-                <div v-if="topics.length > 0" class="pagination">
-                    <el-button :disabled="page <= 1" @click="prevPage" size="small">上一页</el-button>
-                    <span style="margin: 0 10px;color: grey;font-size: 13px">第 {{ page }} 页</span>
-                    <el-button :disabled="page >= Math.ceil(total / pageSize)" @click="nextPage" size="small">下一页</el-button>
-                </div>
+                <div ref="listSentinel" class="list-sentinel" aria-hidden="true"></div>
+            </div>
+            <div v-if="topics.length > 0 || loadError" class="list-footer">
+                <template v-if="loadingMore">
+                    <el-icon class="is-loading"><Loading/></el-icon>
+                    <span>正在加载...</span>
+                </template>
+                <template v-else-if="loadError">
+                    <span>{{ loadError }}</span>
+                    <el-button link type="primary" @click="retryLoadMore">重试</el-button>
+                </template>
+                <template v-else-if="!hasMore">
+                    <span>没有更多了 · 共 {{ total }} 篇</span>
+                </template>
+                <template v-else>
+                    <el-button link type="primary" @click="loadPage(page, false)">加载更多</el-button>
+                </template>
             </div>
         </div>
         <div style="width: 280px">
@@ -743,11 +835,22 @@ apiForumIp(
     gap: 4px;
 }
 
-.pagination {
+.list-sentinel {
+    height: 1px;
+}
+
+.list-footer {
     display: flex;
-    justify-content: center;
     align-items: center;
-    padding: 10px 0;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 0 8px;
+    font-size: 13px;
+    color: var(--el-text-color-secondary);
+}
+
+.list-footer .el-button {
+    font-size: 13px;
 }
 
 .city-results {
