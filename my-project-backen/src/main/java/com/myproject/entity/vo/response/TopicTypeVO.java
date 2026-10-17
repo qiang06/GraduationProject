@@ -8,4 +8,6 @@ public class TopicTypeVO {
     String name;
     String desc;
     String color;
+    String code;
+    Boolean anonymous;
 }

@@ -20,4 +20,8 @@ public class TopicType implements BaseData {
     @TableField("`desc`")
     String desc;
     String color;
+    /** 稳定的业务标识：lost / activity / confession / chat ...，路由与匿名判断都用它 */
+    String code;
+    /** 该分类是否匿名展示（表白墙为 true） */
+    Boolean anonymous;
 }

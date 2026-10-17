@@ -26,6 +26,8 @@ spring:
       period: ${FLOW_PERIOD:2}
       limit: ${FLOW_LIMIT:50}
       block: ${FLOW_BLOCK_SECONDS:30}
+      # 仅在服务部署于可信反向代理之后时开启，否则客户端可伪造 X-Forwarded-For 绕过限流
+      trust-proxy: ${FLOW_TRUST_PROXY:false}
   minio:
     endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
     username: ${MINIO_USERNAME:minio}

@@ -1,5 +1,6 @@
 package com.myproject.entity.vo.response;
 
+import com.alibaba.fastjson2.JSONObject;
 import lombok.Data;
 
 import java.util.Date;
@@ -11,9 +12,16 @@ public class TopicDetailVO {
     String content;
     Integer uid;
     String username;
+    String avatar;
     Integer type;
+    String typeName;
+    String typeCode;
+    JSONObject extra;
+    TopicAuthorVO author;
     Date time;
     Integer top;
+    Integer locked;
+    Integer invisible;
     Integer likeCount;
     Integer collectCount;
     boolean liked;

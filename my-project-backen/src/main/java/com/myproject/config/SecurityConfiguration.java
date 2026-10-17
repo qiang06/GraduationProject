@@ -47,7 +47,9 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/auth/**","/error").permitAll()
                         .requestMatchers("/images/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .anyRequest().hasAnyRole(Const.ROLE_DEFAULT)
+                        .requestMatchers("/api/admin/**").hasRole(Const.ROLE_ADMIN)
+                        // 管理员也能使用普通用户功能
+                        .anyRequest().hasAnyRole(Const.ROLE_DEFAULT, Const.ROLE_ADMIN)
 
                 )
                 .formLogin(login -> login
@@ -84,6 +86,11 @@ public class SecurityConfiguration {
                                         HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
         User user = (User) authentication.getPrincipal();
         Account account = service.findAccountByNameOrEmail(user.getUsername());
+        if (account.isBanned()) {
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write(RestBean.forbidden("此账号已被封禁，请联系管理员").asJsonString());
+            return;
+        }
         String token = utils.creatJwt(user, account.getId(),  account.getUsername());
         AuthorizeVO vo = account.asViewObject(AuthorizeVO.class, v -> {
            v.setToken(token);

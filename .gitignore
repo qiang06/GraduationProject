@@ -1,0 +1,21 @@
+# 构建产物
+**/target/
+**/dist/
+**/node_modules/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 本地环境与密钥
+.env
+.env.local
+**/application-local.yml
+
+# 临时目录
+.m2-temp/
+_piptest/
+
+# 系统文件
+.DS_Store

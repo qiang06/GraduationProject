@@ -7,6 +7,8 @@ import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 import org.hibernate.validator.constraints.Length;
 
+import java.util.Map;
+
 @Data
 public class CreateTopicVO {
     @NotBlank
@@ -21,4 +23,7 @@ public class CreateTopicVO {
     @NotBlank
     @Length(min = 1, max = 20000)
     String content;
+
+    /** 类型专属字段，按分类白名单过滤后存进 db_topic.extra */
+    Map<String, Object> extra;
 }

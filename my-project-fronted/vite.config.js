@@ -22,6 +22,15 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
+  server: {
+    proxy: {
+      // 成绩查询是独立的 FastAPI 服务，走代理避免跨域，也不污染论坛的 axios baseURL
+      '/grade': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true
+      }
+    }
+  },
   build: {
     rollupOptions: {
       output: {

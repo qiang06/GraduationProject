@@ -1,0 +1,11 @@
+# 超星凭据（明文 bearer 凭据，绝不提交）
+.credentials/
+
+# 成绩快照（含个人成绩，按需保留）
+snapshots/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.tmp/

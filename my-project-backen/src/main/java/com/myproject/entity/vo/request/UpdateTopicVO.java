@@ -7,6 +7,8 @@ import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 import org.hibernate.validator.constraints.Length;
 
+import java.util.Map;
+
 @Data
 public class UpdateTopicVO {
     @NotNull
@@ -25,4 +27,6 @@ public class UpdateTopicVO {
     @NotBlank
     @Length(min = 1, max = 20000)
     String content;
+
+    Map<String, Object> extra;
 }

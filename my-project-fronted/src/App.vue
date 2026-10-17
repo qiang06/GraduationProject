@@ -1,5 +1,6 @@
 <script setup>
 import {useDark, useToggle} from '@vueuse/core'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
 
 useDark({
     selector: 'html',
@@ -16,9 +17,11 @@ useDark({
 </script>
 
 <template>
-    <div>
-        <router-view/>
-    </div>
+    <el-config-provider :locale="zhCn">
+        <div>
+            <router-view/>
+        </div>
+    </el-config-provider>
 </template>
 
 <style scoped>

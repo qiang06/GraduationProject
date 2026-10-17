@@ -3,7 +3,7 @@
 import Card from "@/components/Card.vue";
 import {Setting, Switch, Lock} from "@element-plus/icons-vue";
 import {reactive, ref} from "vue";
-import {get, post} from "@/net";
+import {apiUserChangePassword, apiUserPrivacy, apiUserSavePrivacy} from "@/net/api";
 import {ElMessage} from "element-plus";
 
 const form = reactive({
@@ -40,7 +40,7 @@ const onValidate = (prop, isValid) => valid.value = isValid
 function resetPassword() {
     formRef.value.validate(valid => {
         if (valid) {
-            post('/api/user/change-password', form, () => {
+            apiUserChangePassword(form, () => {
                 ElMessage.success('修改密码成功！')
                 formRef.value.resetFields();
             })
@@ -56,7 +56,7 @@ const privacy = reactive({
     email: false,
     gender: false
 })
-get('/api/user/privacy', data => {
+apiUserPrivacy(data => {
     privacy.phone = data.phone
     privacy.email = data.email
     privacy.wx = data.wx
@@ -67,7 +67,7 @@ get('/api/user/privacy', data => {
 
 function savePrivacy(type, status) {
     saving.value = true
-    post('/api/user/save-privacy', {
+    apiUserSavePrivacy({
         type: type,
         status: status
     }, () => {

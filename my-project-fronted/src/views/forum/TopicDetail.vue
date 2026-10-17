@@ -1,11 +1,24 @@
 <script setup>
 import LightCard from "@/components/LightCard.vue";
 import TopicEditor from "@/components/TopicEditor.vue";
-import {ArrowLeft, ChatDotSquare, CollectionTag, Delete, Edit, Star} from "@element-plus/icons-vue";
-import {ref, computed, onMounted} from "vue";
+import TopicTag from "@/components/TopicTag.vue";
+import CommentEditor from "@/components/CommentEditor.vue";
+import CommentItem from "@/components/CommentItem.vue";
+import {ArrowLeft, ChatDotSquare, CollectionTag, Delete, Edit, EditPen, Female, Male, Star} from "@element-plus/icons-vue";
+import {ref, computed, onMounted, reactive} from "vue";
 import {useRoute, useRouter} from "vue-router";
 import {useStore} from "@/store";
-import {get, post} from "@/net";
+import {
+    apiForumCollect,
+    apiForumCommentDelete,
+    apiForumComments,
+    apiForumDelete,
+    apiForumDetail,
+    apiForumInteraction,
+    apiForumLike,
+    apiForumStatus,
+    apiForumUpdate
+} from "@/net/api";
 import {ElMessage, ElMessageBox} from "element-plus";
 import axios from "axios";
 
@@ -20,23 +33,24 @@ const editData = ref(null)
 
 const comments = ref([])
 const commentTotal = ref(0)
+const commentRootTotal = ref(0)
 const commentPages = ref(0)
 const commentPage = ref(1)
 const commentLoading = ref(false)
+const COMMENT_PAGE_SIZE = 10
 
-const newComment = ref('')
-const commentSubmitting = ref(false)
+// 发评论和回复共用一个富文本抽屉；quote 为 null 表示顶层评论
+const commentEditor = reactive({show: false, quote: null})
 
-const replyTarget = ref(null)
-const replyContent = ref('')
-const replySubmitting = ref(false)
+// 作者在「账号安全设置」里隐藏的字段，后端会下发 null；统一用这句话提示
+const HIDDEN_TEXT = '已隐藏或未填写'
 const interaction = ref({likeCount: 0, collectCount: 0, liked: false, collected: false})
 const interactionLoading = ref(false)
 
 function loadDetail() {
     const id = route.params.id
     loading.value = true
-    get(`/api/forum/detail?id=${id}`, (data) => {
+    apiForumDetail(id, (data) => {
         topic.value = data
         loading.value = false
     }, (message) => {
@@ -47,12 +61,13 @@ function loadDetail() {
 }
 
 function loadInteraction() {
-    get(`/api/forum/interaction?tid=${route.params.id}`, data => interaction.value = data)
+    apiForumInteraction(route.params.id, data => interaction.value = data)
 }
 
 function toggleInteraction(kind) {
     interactionLoading.value = true
-    post(`/api/forum/interaction/${kind}`, {id: Number(route.params.id)}, data => {
+    const action = kind === 'like' ? apiForumLike : apiForumCollect
+    action(Number(route.params.id), data => {
         interaction.value = data
         interactionLoading.value = false
     }, message => {
@@ -64,9 +79,10 @@ function toggleInteraction(kind) {
 function loadComments() {
     const id = route.params.id
     commentLoading.value = true
-    get(`/api/forum/comments?tid=${id}&page=${commentPage.value}`, (data) => {
+    apiForumComments(id, commentPage.value, (data) => {
         comments.value = data.items || []
-        commentTotal.value = data.total || 0
+        commentRootTotal.value = data.total || 0
+        commentTotal.value = data.allTotal || 0
         commentPages.value = data.pages || 0
         commentLoading.value = false
     }, (message) => {
@@ -75,71 +91,49 @@ function loadComments() {
     })
 }
 
-function submitComment() {
-    if (!newComment.value.trim()) return
-    commentSubmitting.value = true
-    post('/api/forum/comment', {
-        tid: topic.value.id,
-        content: newComment.value
-    }, (data) => {
-        ElMessage.success('评论成功！')
-        newComment.value = ''
-        commentPage.value = 1
+function changeCommentPage(page) {
+    commentPage.value = page
+    loadComments()
+}
+
+function openCommentEditor(quote = null) {
+    commentEditor.quote = quote
+    commentEditor.show = true
+}
+
+function onCommentSubmitted() {
+    const wasReply = !!commentEditor.quote
+    commentEditor.show = false
+    commentEditor.quote = null
+    if (wasReply) {
+        // 回复挂当前页的顶层评论下，刷新当前页即可
         loadComments()
-        commentSubmitting.value = false
-    }, (message) => {
-        ElMessage.warning(message)
-        commentSubmitting.value = false
-    })
-}
-
-function startReply(comment) {
-    replyTarget.value = comment.id
-    replyContent.value = ''
-}
-
-function cancelReply() {
-    replyTarget.value = null
-    replyContent.value = ''
-}
-
-function submitReply() {
-    if (!replyContent.value.trim()) return
-    replySubmitting.value = true
-    post('/api/forum/comment', {
-        tid: topic.value.id,
-        content: replyContent.value,
-        quote: replyTarget.value
-    }, (data) => {
-        ElMessage.success('回复成功！')
-        replyTarget.value = null
-        replyContent.value = ''
-        commentPage.value = 1
+    } else {
+        // 顶层评论按时间正序，新评论在最后一页
+        commentPage.value = Math.max(1, Math.ceil((commentRootTotal.value + 1) / COMMENT_PAGE_SIZE))
         loadComments()
-        replySubmitting.value = false
-    }, (message) => {
-        ElMessage.warning(message)
-        replySubmitting.value = false
-    })
+    }
 }
 
 function deleteComment(id) {
-    ElMessageBox.confirm('确定要删除这条评论吗？', '确认删除', {
+    ElMessageBox.confirm('确定要删除这条评论吗？它下面的回复也会一起删除。', '确认删除', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
     }).then(() => {
-        post('/api/forum/comment-delete', { id }, () => {
+        const wasRoot = comments.value.some(c => c.id === id)
+        apiForumCommentDelete(id, () => {
             ElMessage.success('删除成功！')
+            // 只有删掉最后一页最后一条顶层评论时才回退页码；
+            // 删回复不会减少顶层评论数，不能误退页
+            if (wasRoot && comments.value.length === 1 && commentPage.value > 1) {
+                commentPage.value--
+            }
             loadComments()
         }, (message) => {
             ElMessage.warning(message)
         })
     }).catch(() => {})
-}
-
-function canDelete(comment) {
-    return store.user.id === comment.uid || (topic.value && store.user.id === topic.value.uid)
 }
 
 function avatarUrl(user) {
@@ -162,6 +156,36 @@ function formatTime(time) {
 
 function isOwner() {
     return topic.value && store.user.id === topic.value.uid
+}
+
+function isLost() {
+    return !!topic.value && topic.value.typeCode === 'lost'
+}
+
+function isResolved() {
+    return !!(topic.value && topic.value.extra && topic.value.extra.status === 'resolved')
+}
+
+// 详情页的结构化信息：失物招领看物品/地点，校园活动看时间/地点
+const extraRows = computed(() => {
+    const data = topic.value && topic.value.extra
+    if (!data) return []
+    const rows = isLost()
+        ? [['物品', data.item], ['地点', data.place], ['时间', data.happenedAt], ['联系方式', data.contact]]
+        : topic.value.typeCode === 'activity'
+            ? [['开始时间', data.startAt], ['结束时间', data.endAt], ['活动地点', data.place], ['主办方', data.organizer]]
+            : []
+    return rows.filter(([, value]) => value).map(([label, value]) => ({label, value}))
+})
+
+function toggleStatus() {
+    const next = isResolved() ? 'open' : 'resolved'
+    apiForumStatus(topic.value.id, next, () => {
+        ElMessage.success(next === 'resolved' ? '已标记为已找回' : '已撤销「已找回」')
+        loadDetail()
+    }, message => {
+        ElMessage.warning(message)
+    })
 }
 
 function deltaToHtml(content) {
@@ -192,13 +216,14 @@ function openEditor() {
         id: topic.value.id,
         title: topic.value.title,
         type: topic.value.type,
-        content: topic.value.content
+        content: topic.value.content,
+        extra: topic.value.extra || {}
     }
     editor.value = true
 }
 
 function handleUpdate(data) {
-    post('/api/forum/update', data, () => {
+    apiForumUpdate(data, () => {
         ElMessage.success('修改成功！')
         editor.value = false
         editData.value = null
@@ -214,7 +239,7 @@ function handleDelete() {
         cancelButtonText: '取消',
         type: 'warning'
     }).then(() => {
-        post('/api/forum/delete', { id: topic.value.id }, () => {
+        apiForumDelete(topic.value.id, () => {
             ElMessage.success('删除成功！')
             router.push('/index')
         }, (message) => {
@@ -235,8 +260,36 @@ onMounted(() => {
 </script>
 
 <template>
-    <div style="display: flex;margin: 20px auto;gap: 20px;max-width: 900px">
-        <div style="flex: 1" v-loading="loading">
+    <div class="detail-page">
+        <aside v-if="topic && topic.author" class="author-panel">
+            <light-card>
+                <div class="author-panel-avatar">
+                    <el-avatar :size="72" :src="avatarUrl(topic.author)"/>
+                </div>
+                <div class="author-panel-name">
+                    {{ topic.author.username }}
+                    <el-icon v-if="topic.author.gender === 1" style="color: hotpink"><Female/></el-icon>
+                    <el-icon v-else-if="topic.author.gender === 0" style="color: dodgerblue"><Male/></el-icon>
+                </div>
+                <div class="author-panel-email">{{ topic.author.email || HIDDEN_TEXT }}</div>
+                <el-divider style="margin: 12px 0"/>
+                <div class="author-contact">
+                    <span>微信号</span>
+                    <span>{{ topic.author.wx || HIDDEN_TEXT }}</span>
+                </div>
+                <div class="author-contact">
+                    <span>QQ号</span>
+                    <span>{{ topic.author.qq || HIDDEN_TEXT }}</span>
+                </div>
+                <div class="author-contact">
+                    <span>手机号</span>
+                    <span>{{ topic.author.phone || HIDDEN_TEXT }}</span>
+                </div>
+                <el-divider style="margin: 12px 0"/>
+                <div class="author-panel-desc">{{ topic.author.desc || '未填写' }}</div>
+            </light-card>
+        </aside>
+        <div class="detail-main" v-loading="loading">
             <div v-if="topic" style="display: flex;flex-direction: column;gap: 10px">
                 <div class="back-bar" @click="goBack">
                     <el-icon><ArrowLeft/></el-icon>
@@ -245,14 +298,22 @@ onMounted(() => {
                 <light-card>
                     <div class="detail-title">{{ topic.title }}</div>
                     <div class="detail-meta">
-                        <span>{{ topic.username }}</span>
-                        <el-divider direction="vertical"/>
                         <span>{{ formatTime(topic.time) }}</span>
                         <el-divider direction="vertical"/>
                         <el-tag v-if="topic.top" type="danger" size="small">置顶</el-tag>
+                        <el-tag v-if="topic.locked === 1" type="warning" size="small">已锁定</el-tag>
+                        <topic-tag :type="topic.type"/>
+                        <el-tag v-if="topic.typeCode === 'confession'" type="warning" size="small">匿名</el-tag>
+                        <el-tag v-if="isLost() && isResolved()" type="success" size="small">已找回</el-tag>
                     </div>
                     <el-divider style="margin: 12px 0"/>
                     <div class="detail-content" v-html="renderedContent"/>
+                    <div v-if="extraRows.length" class="extra-box">
+                        <div v-for="row in extraRows" :key="row.label" class="extra-row">
+                            <span class="extra-label">{{ row.label }}</span>
+                            <span class="extra-value">{{ row.value }}</span>
+                        </div>
+                    </div>
                     <el-divider style="margin: 16px 0"/>
                     <div class="detail-actions">
                         <el-button :type="interaction.liked ? 'primary' : 'default'" :icon="Star" :loading="interactionLoading" @click="toggleInteraction('like')" plain>
@@ -263,7 +324,11 @@ onMounted(() => {
                         </el-button>
                     </div>
                     <div v-if="isOwner()" class="detail-actions owner-actions">
-                        <el-button type="primary" :icon="Edit" @click="openEditor" plain size="small">
+                        <el-button v-if="isLost()" :type="isResolved() ? 'success' : 'warning'"
+                                   @click="toggleStatus" plain size="small">
+                            {{ isResolved() ? '已找回（点击撤销）' : '标记为已找回' }}
+                        </el-button>
+                        <el-button v-if="topic.locked !== 1" type="primary" :icon="Edit" @click="openEditor" plain size="small">
                             编辑
                         </el-button>
                         <el-button type="danger" :icon="Delete" @click="handleDelete" plain size="small">
@@ -275,95 +340,38 @@ onMounted(() => {
                 <light-card>
                     <div class="comment-section-title">
                         <el-icon><ChatDotSquare/></el-icon>
-                        评论 ({{ comments.length }})
+                        评论 ({{ commentTotal }})
                     </div>
                     <el-divider style="margin: 10px 0"/>
 
-                    <div class="comment-input-area">
-                        <el-input
-                            v-model="newComment"
-                            type="textarea"
-                            :rows="2"
-                            placeholder="写下你的评论..."
-                            maxlength="500"
-                            show-word-limit
-                        />
-                        <div class="comment-input-action">
-                            <el-button
-                                type="primary"
-                                size="small"
-                                :loading="commentSubmitting"
-                                @click="submitComment"
-                                :disabled="!newComment.trim()">
-                                发表评论
-                            </el-button>
-                        </div>
+                    <div v-if="topic.locked !== 1" class="comment-entry" @click="openCommentEditor()">
+                        <el-icon><EditPen/></el-icon>
+                        <span>写下你的评论...（支持加粗、列表、链接和图片）</span>
                     </div>
+                    <div v-else class="locked-hint">该帖子已被管理员锁定，暂时不能评论</div>
 
                     <div v-loading="commentLoading" style="min-height:60px">
                         <div v-if="comments.length === 0 && !commentLoading" class="comment-empty">
                             暂无评论，来发表第一条吧
                         </div>
                         <div v-else class="comment-list">
-                            <div v-for="comment in comments" :key="comment.id" class="comment-item">
-                                <div class="comment-body">
-                                    <div class="comment-avatar">
-                                        <el-avatar :size="32" :src="avatarUrl(comment)">{{ comment.username?.charAt(0) }}</el-avatar>
-                                    </div>
-                                    <div class="comment-main">
-                                        <div class="comment-header">
-                                            <span class="comment-author">{{ comment.username }}</span>
-                                            <span class="comment-time">{{ formatTime(comment.time) }}</span>
-                                        </div>
-                                        <div class="comment-text">{{ comment.content }}</div>
-                                        <div class="comment-actions">
-                                            <span class="comment-action-btn" @click="startReply(comment)">回复</span>
-                                            <span v-if="canDelete(comment)" class="comment-action-btn danger" @click="deleteComment(comment.id)">删除</span>
-                                        </div>
-
-                                        <div v-if="replyTarget === comment.id" class="reply-input-area">
-                                            <el-input
-                                                v-model="replyContent"
-                                                type="textarea"
-                                                :rows="2"
-                                                placeholder="回复 {{ comment.username }}..."
-                                                maxlength="500"
-                                                show-word-limit
-                                            />
-                                            <div class="reply-input-action">
-                                                <el-button size="small" @click="cancelReply" plain>取消</el-button>
-                                                <el-button
-                                                    type="primary"
-                                                    size="small"
-                                                    :loading="replySubmitting"
-                                                    @click="submitReply"
-                                                    :disabled="!replyContent.trim()">
-                                                    回复
-                                                </el-button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div v-if="comment.replies && comment.replies.length > 0" class="comment-replies">
-                                    <div v-for="reply in comment.replies" :key="reply.id" class="reply-item">
-                                        <div class="comment-avatar">
-                                            <el-avatar :size="28" :src="avatarUrl(reply)">{{ reply.username?.charAt(0) }}</el-avatar>
-                                        </div>
-                                        <div class="comment-main">
-                                            <div class="comment-header">
-                                                <span class="comment-author">{{ reply.username }}</span>
-                                                <span class="comment-time">{{ formatTime(reply.time) }}</span>
-                                            </div>
-                                            <div class="comment-text">{{ reply.content }}</div>
-                                            <div class="comment-actions">
-                                                <span v-if="canDelete(reply)" class="comment-action-btn danger" @click="deleteComment(reply.id)">删除</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <comment-item v-for="comment in comments"
+                                          :key="comment.id"
+                                          :comment="comment"
+                                          :depth="1"
+                                          :topic="topic"
+                                          :locked="topic.locked === 1"
+                                          @reply="openCommentEditor"
+                                          @delete="deleteComment"/>
                         </div>
+                    </div>
+                    <div v-if="commentPages > 1" class="comment-pagination">
+                        <el-pagination v-model:current-page="commentPage"
+                                       :page-size="COMMENT_PAGE_SIZE"
+                                       :total="commentRootTotal"
+                                       layout="prev, pager, next"
+                                       background
+                                       @current-change="changeCommentPage"/>
                     </div>
                 </light-card>
             </div>
@@ -371,6 +379,13 @@ onMounted(() => {
                 帖子不存在或已被删除
             </div>
         </div>
+        <comment-editor
+            :show="commentEditor.show"
+            :tid="topic ? topic.id : null"
+            :quote="commentEditor.quote"
+            @close="commentEditor.show = false"
+            @submitted="onCommentSubmitted"
+        />
         <topic-editor
             :show="editor"
             :edit-topic="editData"
@@ -401,6 +416,84 @@ onMounted(() => {
     font-weight: 700;
     line-height: 1.4;
     color: var(--el-text-color-primary);
+}
+
+.detail-page {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    margin: 20px auto;
+    max-width: 960px;
+    padding: 0 16px;
+}
+
+.detail-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.author-panel {
+    width: 220px;
+    flex: none;
+    position: sticky;
+    top: 20px;
+}
+
+.author-panel-avatar {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.author-panel-name {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--el-text-color-primary);
+}
+
+.author-panel-email {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    text-align: center;
+    word-break: break-all;
+}
+
+.author-contact {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+}
+
+.author-contact span:last-child {
+    color: var(--el-text-color-regular);
+    text-align: right;
+    word-break: break-all;
+}
+
+.author-panel-desc {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--el-text-color-regular);
+    word-break: break-all;
+}
+
+@media (max-width: 760px) {
+    .detail-page {
+        flex-direction: column;
+    }
+
+    .author-panel {
+        width: 100%;
+        position: static;
+    }
 }
 
 .detail-meta {
@@ -447,6 +540,42 @@ onMounted(() => {
     justify-content: flex-end;
 }
 
+.locked-hint {
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--el-color-warning);
+    background: var(--el-color-warning-light-9);
+}
+
+.extra-box {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 6px;
+    background: var(--el-fill-color-lighter);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.extra-row {
+    display: flex;
+    gap: 12px;
+    font-size: 14px;
+}
+
+.extra-label {
+    flex: none;
+    width: 72px;
+    color: var(--el-text-color-secondary);
+}
+
+.extra-value {
+    color: var(--el-text-color-primary);
+    word-break: break-all;
+}
+
 .comment-section-title {
     display: flex;
     align-items: center;
@@ -455,14 +584,30 @@ onMounted(() => {
     font-size: 15px;
 }
 
-.comment-input-area {
+.comment-entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     margin-bottom: 16px;
+    padding: 10px 12px;
+    border: 1px dashed var(--el-border-color);
+    border-radius: 6px;
+    color: var(--el-text-color-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all .2s;
 
-    .comment-input-action {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: 8px;
+    &:hover {
+        border-color: var(--el-color-primary);
+        color: var(--el-color-primary);
+        background: var(--el-fill-color-lighter);
     }
+}
+
+.comment-pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 16px;
 }
 
 .comment-empty {

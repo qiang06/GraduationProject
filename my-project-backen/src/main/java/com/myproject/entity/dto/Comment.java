@@ -26,4 +26,7 @@ public class Comment implements BaseData {
     Date time;
     @TableField("quote")
     Integer quote;
+    /** 顶层评论 id：顶层评论等于自身 id，回复继承父评论的 rootId */
+    @TableField("root_id")
+    Integer rootId;
 }

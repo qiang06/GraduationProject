@@ -40,10 +40,12 @@ function takeAccessToken() {
     return authObj.token
 }
 
-function storeAccessToken(remember, token, expire){
+function storeAccessToken(remember, token, expire, role){
     const authObj = {
         token: token,
-        expire: expire
+        expire: expire,
+        // 角色先存下来，后续 /admin 路由守卫直接用，不必再请求一次用户信息
+        role: role || 'user'
     }
     const str = JSON.stringify(authObj)
     if(remember)
@@ -93,7 +95,7 @@ function login(username, password, remember, success, failure = defaultFailure){
     }, {
         'Content-Type': 'application/x-www-form-urlencoded'
     }, (data) => {
-        storeAccessToken(remember, data.token, data.expire)
+        storeAccessToken(remember, data.token, data.expire, data.role)
         ElMessage.success(`登录成功，欢迎 ${data.username} 来到我们的系统`)
         success(data)
     }, failure)
@@ -111,12 +113,22 @@ function logout(success, failure = defaultFailure){
     }, failure)
 }
 
-function get(url, success, failure = defaultFailure) {
-    internalGet(url, accessHeader(), success, failure)
+function get(url, success, failure = defaultFailure, error = defaultError) {
+    internalGet(url, accessHeader(), success, failure, error)
 }
 
 function unauthorized() {
     return !takeAccessToken()
 }
 
-export { post, get, login, logout, unauthorized,accessHeader}
+function isRoleAdmin() {
+    const str = localStorage.getItem(authItemName) || sessionStorage.getItem(authItemName)
+    if (!str) return false
+    try {
+        return JSON.parse(str).role === 'admin'
+    } catch (e) {
+        return false
+    }
+}
+
+export { post, get, login, logout, unauthorized, isRoleAdmin, accessHeader}

@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -68,13 +67,17 @@ public class FlowUtils {
      * @return 是否通过限流检查
      */
     private boolean internalCheck(String key, int frequency, int period, LimitAction action){
-        if (template.hasKey(key)) {
-            Long value = Optional.ofNullable(template.opsForValue().increment(key)).orElse(0L);
-            return action.run(value > frequency);
-        } else {
-            template.opsForValue().set(key, "1", period, TimeUnit.SECONDS);
-            return true;
+        // 直接用 INCR 的返回值判定，避免 hasKey + set 的检查-设置竞态导致计数被重置
+        Long value = template.opsForValue().increment(key);
+        if (value == null) {
+            log.warn("限流计数失败，Redis 不可用，本次请求放行: {}", key);
+            return action.run(false);
         }
+        if (value == 1L) {
+            // 仅在计数器首次创建时设置过期时间
+            template.expire(key, period, TimeUnit.SECONDS);
+        }
+        return action.run(value > frequency);
     }
 
     /**

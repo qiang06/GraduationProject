@@ -2,7 +2,12 @@
 import {onMounted, ref} from 'vue'
 import {Bell, Check, Finished} from '@element-plus/icons-vue'
 import {useRouter} from 'vue-router'
-import {get, post} from '@/net'
+import {
+    apiNotificationList,
+    apiNotificationRead,
+    apiNotificationReadAll,
+    apiNotificationUnread
+} from '@/net/api'
 import {ElMessage} from 'element-plus'
 import LightCard from '@/components/LightCard.vue'
 
@@ -13,19 +18,19 @@ const unread = ref(0)
 
 function load() {
     loading.value = true
-    get('/api/notification/list?page=1&size=50', data => {
+    apiNotificationList(1, 50, data => {
         items.value = data.items || []
         loading.value = false
     }, message => {
         ElMessage.warning(message)
         loading.value = false
     })
-    get('/api/notification/unread', data => unread.value = data.count || 0)
+    apiNotificationUnread(data => unread.value = data.count || 0)
 }
 
 function markRead(item) {
     if (!item.read) {
-        post('/api/notification/read', {id: item.id}, () => {
+        apiNotificationRead(item.id, () => {
             item.read = 1
             unread.value = Math.max(0, unread.value - 1)
         })
@@ -34,7 +39,7 @@ function markRead(item) {
 }
 
 function markAllRead() {
-    post('/api/notification/read-all', {}, () => {
+    apiNotificationReadAll(() => {
         items.value.forEach(item => item.read = 1)
         unread.value = 0
         ElMessage.success('已全部标记为已读')

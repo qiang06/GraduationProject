@@ -56,6 +56,9 @@ public interface BaseData {
             field.setAccessible(true);
             source.setAccessible(true);
             field.set(target, source.get(this));
-        } catch (IllegalAccessException | NoSuchFieldException ignored) {}
+        } catch (IllegalAccessException | NoSuchFieldException | IllegalArgumentException ignored) {
+            // 字段类型不一致（如 DTO 的 String extra 对应 VO 的 JSONObject extra）时跳过，
+            // 由业务层在转换后手动赋值，避免整个转换流程抛异常
+        }
     }
 }

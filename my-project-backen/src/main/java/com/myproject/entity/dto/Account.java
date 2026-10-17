@@ -21,4 +21,8 @@ public class Account implements BaseData {
     String role;
     String avatar;
     Date registerTime;
+    /** 管理端禁言：不能发帖/评论 */
+    boolean mute;
+    /** 管理端封禁：不能登录 */
+    boolean banned;
 }

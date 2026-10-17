@@ -1,5 +1,6 @@
 <script setup>
-import {logout, get} from '@/net'
+import {apiAuthLogout, apiForumTypes, apiUserInfo} from '@/net/api'
+import {isRoleAdmin} from '@/net'
 import router from "@/router";
 import {useStore} from "@/store";
 import {ref, reactive} from 'vue'
@@ -19,17 +20,32 @@ import {
 const store = useStore()
 
 const loading = ref(true)
-get('/api/user/info', (data) => {
+apiUserInfo((data) => {
     store.user = data
     loading.value = false
 })
+// 分类元数据全应用只拉一次，TopicTag / 发帖编辑器共用
+if (!store.forum.types.length) {
+    // 和 jwt-1.0 一样：在真实分类前插一个「全部」伪分类，只有分类筛选栏会用到它；
+    // 发帖编辑器的下拉框会过滤掉 id=0，避免把「全部」当成可发布类型
+    apiForumTypes(data => {
+        store.forum.types = [
+            {name: '全部', id: 0, color: 'linear-gradient(45deg, white, red, orange, gold, green, blue)'},
+            ...(data || [])
+        ]
+    })
+}
 
 function userLogout() {
-    logout(() => router.push("/"))
+    apiAuthLogout(() => router.push("/"))
 }
 
 function goUserSetting() {
     router.push('/index/user-setting')
+}
+
+function showCollects() {
+    router.push('/index/collects')
 }
 
 function showMessages() {
@@ -73,6 +89,18 @@ const searchInput = reactive({
                     <el-dropdown>
                         <el-avatar :src="store.avatarUrl"/>
                         <template #dropdown>
+                            <el-dropdown-item @click="showCollects">
+                                <el-icon>
+                                    <collection/>
+                                </el-icon>
+                                我的收藏
+                            </el-dropdown-item>
+                            <el-dropdown-item v-if="isRoleAdmin()" @click="router.push('/admin')">
+                                <el-icon>
+                                    <operation/>
+                                </el-icon>
+                                管理后台
+                            </el-dropdown-item>
                             <el-dropdown-item @click="goUserSetting">
                                 <el-icon>
                                     <operation/>
@@ -103,7 +131,7 @@ const searchInput = reactive({
                 <el-aside width="230px">
                     <el-scrollbar style="min-height: calc(100vh - 55px);">
                         <el-menu
-                            :default-active="$route.path"
+                            :default-active="$route.fullPath"
                             :default-openeds="['1','2','3']"
                             router
                             style="height: calc(100vh - 55px);">
@@ -122,7 +150,7 @@ const searchInput = reactive({
                                         <span>帖子广场</span>
                                     </template>
                                 </el-menu-item>
-                                <el-menu-item>
+                                <el-menu-item index="/index/lost">
                                     <template #title>
                                         <el-icon>
                                             <bell/>
@@ -130,7 +158,7 @@ const searchInput = reactive({
                                         <span>失物招领</span>
                                     </template>
                                 </el-menu-item>
-                                <el-menu-item>
+                                <el-menu-item index="/index/activity">
                                     <template #title>
                                         <el-icon>
                                             <notification/>
@@ -138,7 +166,7 @@ const searchInput = reactive({
                                         <span>校园活动</span>
                                     </template>
                                 </el-menu-item>
-                                <el-menu-item>
+                                <el-menu-item index="/index/confession">
                                     <template #title>
                                         <el-icon>
                                             <umbrella/>
@@ -163,7 +191,7 @@ const searchInput = reactive({
                                     </el-icon>
                                     <span><b>探索与发现</b></span>
                                 </template>
-                                <el-menu-item>
+                                <el-menu-item index="/index/grade">
                                     <template #title>
                                         <el-icon>
                                             <document/>
@@ -237,9 +265,12 @@ const searchInput = reactive({
                     <el-scrollbar style="height: calc(100vh - 55px)">
                         <router-view v-slot="{ Component }">
                             <transition mode="out-in" name="el-fade-in-linear">
-                                <component :is="Component" style="height: 100%"/>
+                                <keep-alive include="TopicList">
+                                    <component :is="Component" style="height: 100%"/>
+                                </keep-alive>
                             </transition>
                         </router-view>
+                        <el-backtop target=".main-content-page .el-scrollbar__wrap" :right="20" :bottom="70"/>
                     </el-scrollbar>
                 </el-main>
             </el-container>

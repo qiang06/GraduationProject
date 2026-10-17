@@ -23,4 +23,10 @@ public class Topic implements BaseData {
     Integer type;
     Date time;
     Integer top;
+    /** 管理端锁定：禁止评论/编辑 */
+    Integer locked;
+    /** 管理端屏蔽：普通用户列表/详情不可见 */
+    Integer invisible;
+    /** 类型专属字段的 JSON 文本：失物招领 item/place/status、校园活动时间地点等 */
+    String extra;
 }

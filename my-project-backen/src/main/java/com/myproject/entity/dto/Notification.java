@@ -25,5 +25,5 @@ public class Notification implements BaseData {
     String url;
     Date time;
     @TableField("is_read")
-    Integer read;
+    Integer isRead;
 }

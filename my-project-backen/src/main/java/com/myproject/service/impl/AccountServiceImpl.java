@@ -1,9 +1,13 @@
 package com.myproject.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.myproject.entity.dto.Account;
 import com.myproject.entity.vo.request.*;
+import com.myproject.entity.vo.response.AdminUserVO;
+import com.myproject.entity.vo.response.PageVO;
 import com.myproject.mapper.AccountMapper;
 import com.myproject.service.AccountService;
 import com.myproject.utils.Const;
@@ -18,8 +22,10 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -92,6 +98,7 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
      * @return 操作结果，null表示正常，否则为错误原因
      */
     
+    @Transactional
     public String registerEmailAccount(EmailRegisterVO info){
         String email = info.getEmail();
         String code = stringRedisTemplate.opsForValue().get(Const.VERIFY_EMAIL_DATA + email);
@@ -102,7 +109,7 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
         if(this.existsAccountByUsername(username)) return "该用户名已被他人使用，请重新更换";
         String password = passwordEncoder.encode(info.getPassword());
         Account account = new Account(null, info.getUsername(),
-                password, email, Const.ROLE_DEFAULT, null,new Date());
+                password, email, Const.ROLE_DEFAULT, null, new Date(), false, false);
         if(!this.save(account)) {
             return "内部错误，注册失败";
         } else {
@@ -117,6 +124,7 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
      * @return 操作结果，null表示正常，否则为错误原因
      */
     @Override
+    @Transactional
     public String resetEmailAccountPassword(EmailResetVO info) {
         String verify = resetConfirm(new ConfirmResetVO(info.getEmail(), info.getCode()));
         if(verify != null) return verify;
@@ -203,15 +211,17 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
     }
 
     @Override
+    @Transactional
     public String modifyEmail(int id, ModifyEmailVO vo) {
         String email = vo.getEmail();
         String code = getEmailVerifyCode(email);
         if(code == null) return "请先获取验证码！";
         if(!code.equals(vo.getCode())) return "验证码错误，请重新输入";
-        this.deleteEmailVerifyCode(email);
         Account account = this.findAccountByNameOrEmail(email);
         if(account != null && account.getId() != id)
             return "该电子邮件已经被其他账号绑定，无法完成此操作！";
+        // 冲突检查通过后再消费验证码，避免校验失败时验证码被白白作废
+        this.deleteEmailVerifyCode(email);
         this.update()
                 .set("email", email)
                 .eq("id", id)
@@ -221,6 +231,7 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
     }
 
     @Override
+    @Transactional
     public String ChangePassword(int id, ChangePasswordVO vo) {
         String password = this.query().eq("id", id).one().getPassword();
         if (!passwordEncoder.matches(vo.getPassword(),password))
@@ -231,6 +242,55 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
                 .update();
 
         return success ? null : "未知错误，请联系管理员";
+    }
+
+    @Override
+    public PageVO<AdminUserVO> listUsers(int page, int size, String keyword) {
+        Page<Account> pageParam = new Page<>(page, size);
+        LambdaQueryWrapper<Account> wrapper = new LambdaQueryWrapper<>();
+        if (keyword != null && !keyword.isBlank()) {
+            String k = keyword.trim();
+            wrapper.and(w -> w.like(Account::getUsername, k).or().like(Account::getEmail, k));
+        }
+        wrapper.orderByDesc(Account::getRegisterTime);
+        Page<Account> result = this.page(pageParam, wrapper);
+        List<AdminUserVO> items = result.getRecords().stream()
+                .map(account -> account.asViewObject(AdminUserVO.class))
+                .toList();
+        return PageVO.of(items, result.getTotal(), result.getCurrent(), result.getSize(), result.getPages());
+    }
+
+    @Override
+    public String saveUser(int operatorId, int id, String role, boolean mute, boolean banned) {
+        if (!Const.ROLE_DEFAULT.equals(role) && !Const.ROLE_ADMIN.equals(role)) {
+            return "角色不合法";
+        }
+        if (id == operatorId && (banned || !Const.ROLE_ADMIN.equals(role))) {
+            return "不能封禁或降级当前登录的管理员";
+        }
+        Account account = this.getById(id);
+        if (account == null) {
+            return "用户不存在";
+        }
+        account.setRole(role);
+        account.setMute(mute);
+        account.setBanned(banned);
+        this.updateById(account);
+        return null;
+    }
+
+    @Override
+    public String changeUserPassword(int id, String newPassword) {
+        if (newPassword == null || newPassword.length() < 6 || newPassword.length() > 20) {
+            return "密码长度必须在 6-20 位";
+        }
+        Account account = this.getById(id);
+        if (account == null) {
+            return "用户不存在";
+        }
+        account.setPassword(passwordEncoder.encode(newPassword));
+        this.updateById(account);
+        return null;
     }
 
 }

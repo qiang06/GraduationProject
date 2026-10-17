@@ -78,7 +78,7 @@ import {EditPen, Lock, Message, User} from "@element-plus/icons-vue";
 import router from "@/router";
 import {reactive, ref} from "vue";
 import {ElMessage} from "element-plus";
-import {get, post} from "@/net";
+import {apiAuthAskCode, apiAuthRegister} from "@/net/api";
 
 const form = reactive({
     username: '',
@@ -141,7 +141,7 @@ const onValidate = (prop, isValid) => {
 const register = () => {
     formRef.value.validate((isValid) => {
         if (isValid) {
-            post('/api/auth/register', {
+            apiAuthRegister({
                 username: form.username,
                 password: form.password,
                 email: form.email,
@@ -158,7 +158,7 @@ const register = () => {
 
 const validateEmail = () => {
     coldTime.value = 60
-    get(`/api/auth/ask-code?email=${form.email}&type=register`, () => {
+    apiAuthAskCode(form.email, 'register', () => {
         ElMessage.success(`验证码已发送到邮箱: ${form.email}，请注意查收`)
         const handle = setInterval(() => {
             coldTime.value--

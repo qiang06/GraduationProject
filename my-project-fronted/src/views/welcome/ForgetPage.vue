@@ -90,7 +90,7 @@
 <script setup>
 import {reactive, ref} from "vue";
 import {EditPen, Lock, Message} from "@element-plus/icons-vue";
-import {get, post} from "@/net";
+import {apiAuthAskCode, apiAuthResetConfirm, apiAuthResetPassword} from "@/net/api";
 import {ElMessage} from "element-plus";
 import router from "@/router";
 
@@ -141,7 +141,7 @@ const onValidate = (prop, isValid) => {
 
 const validateEmail = () => {
     coldTime.value = 60
-    get(`/api/auth/ask-code?email=${form.email}&type=reset`, () => {
+    apiAuthAskCode(form.email, 'reset', () => {
         ElMessage.success(`验证码已发送到邮箱: ${form.email}，请注意查收`)
         const handle = setInterval(() => {
             coldTime.value--
@@ -158,7 +158,7 @@ const validateEmail = () => {
 const confirmReset = () => {
     formRef.value.validate((isValid) => {
         if (isValid) {
-            post('/api/auth/reset-confirm', {
+            apiAuthResetConfirm({
                 email: form.email,
                 code: form.code
             }, () => active.value++)
@@ -169,7 +169,7 @@ const confirmReset = () => {
 const doReset = () => {
     formRef.value.validate((isValid) => {
         if (isValid) {
-            post('/api/auth/reset-password', {
+            apiAuthResetPassword({
                 email: form.email,
                 code: form.code,
                 password: form.password

@@ -5,7 +5,8 @@ import Card from "@/components/Card.vue";
 import {Message, Refresh, Select, User} from "@element-plus/icons-vue";
 import {useStore} from "@/store/index.js";
 import {computed, reactive, ref} from 'vue'
-import {post, get, accessHeader} from "@/net/index.js";
+import {accessHeader} from "@/net/index.js";
+import {apiAuthAskCode, apiUserDetails, apiUserModifyEmail, apiUserSaveDetails} from "@/net/api";
 import {ElMessage} from "element-plus";
 import axios from "axios";
 
@@ -81,7 +82,7 @@ function saveDetails() {
     baseFormRef.value.validate((isValid, invalidFields) => {
         if (isValid) {
             loading.base = true
-            post('/api/user/save-details', baseForm, () => {
+            apiUserSaveDetails(baseForm, () => {
                 ElMessage.success('用户信息保存成功')
                 store.user.username = baseForm.username // 修正写法
                 desc.value = baseForm.desc
@@ -119,7 +120,7 @@ function saveDetails() {
 // }
 
 
-get('/api/user/details', data => {
+apiUserDetails(data => {
     baseForm.username = store.user.username
     baseForm.gender = data.gender
     baseForm.phone = data.phone
@@ -141,7 +142,7 @@ function sendEmailCode() {
     emailFormRef.value.validate(isValid => {
         if (isValid) {
             coldTime.value = 60
-            get(`/api/auth/ask-code?email=${emailForm.email}&type=modify`, () => {
+            apiAuthAskCode(emailForm.email, 'modify', () => {
                 ElMessage.success(`验证码已成功发送到邮箱：${emailForm.email}，请注意查收`)
                 const handle = setInterval(() => {
                     coldTime.value--
@@ -160,7 +161,7 @@ function sendEmailCode() {
 function modifyEmail() {
     emailFormRef.value.validate(isValid => {
         if (isValid) {
-            post('/api/user/modify-email', emailForm, () => {
+            apiUserModifyEmail(emailForm, () => {
                 ElMessage.success('邮件修改成功')
                 store.user.email = emailForm.email
                 emailForm.code = ''
