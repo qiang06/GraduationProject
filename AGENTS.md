@@ -13,7 +13,7 @@
 - 任务书进度：开题 9.16–9.23 → 规划 9.23–10.13 → 实施 10.14–11.12 → 完善 11.13–11.23
 - 仓库根 = 本目录；远程 `https://github.com/qiang06/GraduationProject.git`（分支 `master`）
 - 开题报告范围：注册登录、资料与隐私、帖子、评论回复、点赞收藏、消息通知
-- 实际多做：**超星成绩查询**（`grade-service` + `/index/grade`）、**管理端**（`/admin`）。开题报告里没有，答辩按「扩展模块」讲
+- 实际多做：**超星成绩查询**（`grade-service` + `/index/grade`）、**管理端**（`/admin`）、**校园服务**（教务通知/我的课程表/在线图书馆，管理员本地维护）。开题报告里没有，答辩按「扩展模块」讲
 - 三个可独立启动的部分：论坛后端 `:8080`、论坛前端 `:5173`、成绩服务 `:8000`
 
 ## 1. 在这台机器上跑起来
@@ -49,7 +49,7 @@ java -version && mvn -v
 | `minio` | 9000 / 9001 | `/data/docker-data/miniodata` | bucket：`study`（图片）、`avatar`、`test` |
 
 - 本目录的 `docker-compose.yml` 是可移植版本，端口与上面**完全相同**。基础设施在跑时再 `docker compose up` 会端口冲突。
-- 数据库 `test` 已有演示数据：4 账号 / 20 帖 / 37 评论 / 9 赞 / 7 收藏 / **13 分类**（含失物招领/校园活动/表白墙，以及用户自建的 java 分类）。
+- 数据库 `test` 已有演示数据：4 账号 / 20 帖 / 37 评论 / 9 赞 / 7 收藏 / **13 分类**，以及校园服务 **6 条通知 / 7 门课程 / 10 条图书馆资源**。
 - 确实要重启：`cd ~/forum && docker compose up -d`（数据在 `/data`，不会丢）。
 
 ### 1.3 启动顺序
@@ -82,7 +82,7 @@ my-project/                         ← git 仓库根（本目录）
 ├── grade-service/                  FastAPI 超星成绩服务（自带 .venv，不进 git）
 ├── docker-compose.yml              可移植基础设施（当前未用于运行，见 1.2）
 ├── .env.example                    后端环境变量样例
-├── test.sql / p1-p4 增量          见第 4 节
+├── test.sql / p1-p5 增量          见第 4 节
 ├── AGENTS.md / CLAUDE.md           本文档 / 指向本文档
 └── walkthrough.md                  旧版架构分析（不作为运行依据）
 ```
@@ -145,7 +145,7 @@ VO 必须有无参构造函数，字段缺失静默跳过，不做类型转换�
 
 ## 4. 数据库
 
-10 张表，实体都在 `entity/dto/`：
+13 张表，实体都在 `entity/dto/`：
 
 | 表 | 实体 | 用途 |
 |---|---|---|
@@ -159,6 +159,9 @@ VO 必须有无参构造函数，字段缺失静默跳过，不做类型转换�
 | `db_topic_interact_like` | TopicInteractLike | 点赞，`(tid,uid)` 唯一 |
 | `db_topic_interact_collect` | TopicInteractCollect | 收藏，`(tid,uid)` 唯一 |
 | `db_topic_type` | TopicType | 分类（**code / anonymous** / name / desc / color） |
+| `db_notice` | Notice | 教务通知（title / category / content / top / publisher / publish_time） |
+| `db_course` | Course | 个人课程表（uid / name / teacher / location / weekday / start/end_section / weeks / color / note） |
+| `db_library_resource` | LibraryResource | 图书馆资源（title / author / category / cover / description / url） |
 
 脚本：
 
@@ -167,6 +170,7 @@ VO 必须有无参构造函数，字段缺失静默跳过，不做类型转换�
 - `p2-topic-extra.sql`：失物招领/校园活动/表白墙的增量（`db_topic.extra`、`db_topic_type.code/anonymous`、两个新分类）。**只执行一次**，执行前会自动建 `db_topic_bak_p2`、`db_topic_type_bak_p2` 两张备份表
 - `p3-admin.sql`：管理端字段（`db_topic.locked/invisible`、`db_account.mute/banned`），并把 1 号账号设为管理员。**只执行一次**，会建 `db_topic_bak_p3`、`db_account_bak_p3` 备份表
 - `p4-comment-tree.sql`：多级评论（`db_topic_comment.root_id` + 索引）。**只执行一次**，会建 `db_topic_comment_bak_p4`；同时兼容旧数据 `quote=-1`、父评论已丢失的孤儿回复，并递归回填 `root_id`
+- `p5-campus-services.sql`：校园服务三张表（`db_notice` / `db_course` / `db_library_resource`）+ 演示数据。**只执行一次**；当前库已执行
 - 老库若 `db_notification` 缺列：`ALTER TABLE db_notification ADD COLUMN is_read TINYINT(1) NOT NULL DEFAULT 0 AFTER time;`
 - `test.sql` 现在自带 12 个分类的种子数据；`p1`/`p2` 是纯增量脚本。新环境跑完 `test.sql` 就能直接发帖
 - 没有 Flyway/Liquibase。容器的 `lower_case_table_names=2` 是**启动硬条件**（迁移数据的数据字典要求），不要改
@@ -208,6 +212,18 @@ VO 必须有无参构造函数，字段缺失静默跳过，不做类型转换�
 | GET | `/comments?tid=&page=&size=` | 顶层评论分页，返回多级 `replies` 树；`CommentPageVO` 的 `total` 是顶层数（分页用），`allTotal` 是含所有回复的总数；匿名帖里楼主的评论对别人显示「匿名同学」 |
 | POST | `/comment-delete` | 评论作者或楼主可删 |
 
+### 校园服务 `/api/campus`（需登录）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/notices?page=&size=&category=&keyword=` | 教务通知列表（置顶优先，返回摘要） |
+| GET | `/notices/{id}` | 通知详情（正文为 sanitize 后的 HTML） |
+| GET | `/courses` | 我的课程表 |
+| POST | `/courses/save` | 新增/修改自己的课程；`id` 为空是新增 |
+| POST | `/courses/delete` | 删除自己的课程 |
+| GET | `/library?page=&size=&category=&keyword=` | 图书馆资源列表 |
+| GET | `/library/{id}` | 资源详情 |
+
 ### 互动 `/api/forum/interaction`（需登录）
 
 `GET ?tid=` 取计数与当前用户状态；`POST /like`、`POST /collect`（body `{id}`）切换，取消不通知，新增时给楼主发通知。
@@ -235,6 +251,9 @@ VO 必须有无参构造函数，字段缺失静默跳过，不做类型转换�
 | GET | `/user/list?page=&size=&keyword=` | 用户列表（含 mute/banned/role） |
 | POST | `/user/save` | body `{id,role,mute,banned}`；不能封禁/降级当前管理员 |
 | POST | `/user/change-password` | body `{id,newPassword}` |
+| GET/POST | `/campus/notices`、`/campus/notices/save|delete|top` | 通知管理；`save` body `{id?,title,category,content,top,publisher}` |
+| GET/POST | `/campus/courses`、`/campus/courses/delete` | 全部课程查询（只读+删除）；`GET` 支持 `keyword/uid` |
+| GET/POST | `/campus/library`、`/campus/library/save|delete` | 图书馆资源管理 |
 
 ### 其他
 
@@ -247,11 +266,13 @@ VO 必须有无参构造函数，字段缺失静默跳过，不做类型转换�
 `/`（WelcomeView）→ 登录 `/`、注册 `/register`、找回 `/forget`；
 `/index`（IndexView）→ 帖子广场 `/index`、详情 `/index/topic/:id`、
 失物招领 `/index/lost`、校园活动 `/index/activity`、表白墙 `/index/confession`、
+教务通知 `/index/notices`、通知详情 `/index/notices/:id`、我的课程表 `/index/schedule`、
+在线图书馆 `/index/library`、资源详情 `/index/library/:id`、
 我的收藏 `/index/collects`、成绩 `/index/grade`、通知 `/index/notifications`、
 资料 `/index/user-setting`、安全 `/index/privacy-setting`。
 三个分类页复用 `TopicList.vue`，标题/提示/发帖预设类型来自路由 `meta`。
 
-管理端：`/admin`（默认跳 `/admin/forum`）、`/admin/forum`、`/admin/user`。
+管理端：`/admin`（默认跳 `/admin/forum`）、`/admin/forum`、`/admin/user`、`/admin/campus`（校园服务，内含通知/课程表/图书馆三个子 tab）。
 
 守卫：`/welcome*` 仅游客、`/index*` 仅登录、`/admin*` 要求 `isRoleAdmin()`（登录时存下的 role === 'admin'）。
 
@@ -291,6 +312,8 @@ npm run build                  # dist/
 `linear-gradient(45deg, white, red, orange, gold, green, blue)`；`TopicEditor` 的下拉框必须过滤 `id > 0`，
 否则「全部」会被当成可发布类型。
 `GradeView.vue` 有 855 行，是最大的组件，改之前先读完整 script。
+校园服务页面在 `views/campus/`：`NoticeList/NoticeDetail`、`ScheduleView`（周视图网格 + 列表切换）、`LibraryList/LibraryDetail`；
+管理端在 `views/admin/AdminCampus.vue` + `CampusNoticeAdmin/CampusCourseAdmin/CampusLibraryAdmin`，通知正文复用 `RichTextEditor.vue`。
 天气卡片右上角「切换城市」：搜索走 `/weather/search`，选择后走 `/weather/city`，结果记在 `forum:weatherCity`。
 `App.vue` 用 `el-config-provider` 把 Element Plus 切成 zh-cn；`IndexView` 的 `router-view` 对 `TopicList` 开了 `keep-alive`（切分类页保留滚动/筛选状态），并加了 `el-backtop`。
 详情页评论数用 `commentTotal`（即 `CommentPageVO.allTotal`，含所有层级回复），分页用 `commentRootTotal`（顶层评论数），不要用 `comments.length`（只是当前页条数）。
@@ -351,6 +374,9 @@ npm run build                  # dist/
 20. **多级评论**：`db_topic_comment.quote` 是直接父评论，`root_id` 是顶层评论。顶层 `root_id=id`，回复继承父的 `root_id`；`listComments` 按顶层分页后一次取本页所有 `root_id` 的后代建树。删除父评论会删整棵子树，不做软删除
 21. **p4 历史数据**：jwt-1.0 迁移过来的评论用 `quote=-1` 表示顶层，且存在父评论已被删除的孤儿回复；`p4-comment-tree.sql` 会把 `-1` 改成 `NULL`、把孤儿提升为顶层，并递归回填 `root_id`。旧评论内容可能是 Quill Delta JSON，`CommentServiceImpl.normalizeContent` 在读取时转成安全 HTML，新评论直接存 sanitize 后的 HTML
 22. **评论计数**：`CommentPageVO.total` 是顶层评论数（分页），`allTotal` 是含所有回复的总数（页面标题「评论 (x)」用后者）。前端 `commentRootTotal`/`commentTotal` 不要混用
+23. **校园服务是本地数据**：学校没有开放教务/图书馆接口，通知、课程表、书目都由管理员在 `/admin/campus` 维护；论文/答辩必须写清「非实时对接」，不要包装成学校系统
+24. **课程表是个人课表**：用户只能增删改查自己的 `db_course`，管理员只查看+删除；周视图用 CSS Grid 显式定位每个格子，不要让课程卡片参与自动排布，否则节次会错位
+25. **图书馆不做借阅**：只有书目/外链（`url` 必须 http/https），没有库存/借还/收藏；封面走现有 `/api/image/cache`，5MB
 
 ## 9. 构建与验证清单
 
@@ -369,7 +395,8 @@ curl -s http://127.0.0.1:8000/grade/api/health
 ```
 
 手工冒烟顺序：注册（需邮箱验证码）→ 登录 → 发帖（富文本+图片）→ 搜索 → 详情 → 评论/回复 → 点赞/收藏 →
-换另一个账号验证通知 → 资料/隐私设置 → 我的收藏 → 成绩查询（可选）。
+换另一个账号验证通知 → 资料/隐私设置 → 我的收藏 → 成绩查询（可选）→
+校园服务：教务通知列表/详情 → 我的课程表周视图/添加课程 → 在线图书馆搜索/详情 → `/admin/campus` 三个子 tab。
 
 管理端：用 admin 账号登录 → 右上角「管理后台」→ 帖子置顶/锁定/屏蔽/删除/改分类 → 分类增删改 → 用户禁言/封禁/改密。
 普通用户账号访问 `/admin` 会被路由守卫送回 `/index`，直接打 `/api/admin/**` 会 403。
@@ -381,7 +408,8 @@ P0 前端重构后（`net/api` 分层、store types、TopicTag、keep-alive/back
 P1/P2 冒烟：`/api/forum/collects`、`/api/forum/top`、详情 author 隐私过滤；管理端帖子/分类/用户 CRUD、置顶/锁定/屏蔽、禁言、非管理员 403 全部通过。
 消息列表 500 已修（isRead + MySQL 保留字）；管理端置顶/锁定/屏蔽/禁言会写 system 通知；禁言/封禁后写操作会返回明确提示。
 评论已改富文本 + 多级：HTML sanitize、2000 字/20000 字符、最多 10 层、视觉 3 层、删除子树、旧 Delta/纯文本兼容。
-`mvn test` 29/29；`npm run build` 通过（9.2s）；headless Chrome 冒烟通过（详情/作者面板/评论树/抽屉/回复标题，无 console error）。
+`mvn test` 29/29；`npm run build` 通过（8.7s）；headless Chrome 冒烟通过（论坛/评论/校园服务/管理端，无 console error）。
+校园服务实测：通知 6 条、课程 3/4 门、图书馆 10 条；非管理员打 `/api/admin/campus/**` 返回 403；通知 XSS 过滤、课程归属校验、图书馆 CRUD 均通过。
 
 ## 10. 仓库卫生
 

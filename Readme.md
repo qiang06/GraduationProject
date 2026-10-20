@@ -30,6 +30,7 @@ docker compose up -d mysql redis rabbitmq minio
 2. `my-project-backen/src/main/resources/p2-topic-extra.sql`（失物招领/校园活动/表白墙；**只执行一次**，会先建两张备份表）
 3. `my-project-backen/src/main/resources/p3-admin.sql`（管理端字段；**只执行一次**，会先把 1 号账号设为管理员）
 4. `my-project-backen/src/main/resources/p4-comment-tree.sql`（多级评论 `root_id`；**只执行一次**，会建 `db_topic_comment_bak_p4`，并兼容 `quote=-1` 的旧数据）
+5. `my-project-backen/src/main/resources/p5-campus-services.sql`（校园服务三张表 + 演示数据；**只执行一次**）
 
 管理端入口 `/admin` 需要 `db_account.role = 'admin'`。把自己提权：
 
@@ -55,7 +56,9 @@ mvn test
 mvn spring-boot:run
 ```
 
-后端配置在 `src/main/resources/application.yml`，敏感配置支持环境变量覆盖。可复制根目录 `.env.example` 并在启动进程中导出对应变量。
+后端配置在 `src/main/resources/application.yml`，敏感配置支持环境变量覆盖。复制根目录 `.env.example` 为 `.env` 并填入邮箱授权码/和风 key；
+`scripts/demo-env.sh` 会自动加载 `.env`，手动 `mvn spring-boot:run` 前先执行
+`set -a; source .env; set +a`。仓库里的 `application.yml` 只保留空默认值，不含真实密钥。
 
 ## 前端
 
@@ -75,6 +78,8 @@ npm run dev
 - 分类模块：失物招领（物品/地点/联系方式 + 已找回状态）、校园活动（时间/地点/主办方）、表白墙（匿名，含楼主评论匿名）
 - 我的收藏：按收藏时间倒序，可取消收藏
 - 详情页：左侧作者面板（联系方式按隐私设置过滤，隐藏/未填写统一提示）、置顶/锁定/已找回标签、作者卡片、标题滚出视口后的吸顶导航条
+- 校园服务（本地数据，管理员维护）：教务通知（分类/搜索/置顶/详情）、我的课程表（周视图/列表、个人增删改查）、在线图书馆（书目/搜索/详情/外链）
+- 校园服务管理端：`/admin/campus`，通知/课程表/图书馆三个子 tab；课程表只查看+删除，不替用户改
 - 管理端：帖子列表/搜索/置顶/锁定/屏蔽/删除/改分类；分类增删改（code/颜色/匿名）；用户列表/禁言/封禁/改密
 - 评论：Quill 富文本（格式/图片）、多级回复（最多 10 层，视觉缩进 3 层）、权限删除（父评论删整棵子树）、顶层分页 + 全部评论数、旧 Delta/纯文本兼容
 - 互动：点赞、收藏及计数
@@ -95,3 +100,4 @@ npm run dev
 - 执行 P2 增量 SQL 后验证失物招领 extra 与「已找回」、活动字段、表白墙匿名
 - 执行 P3 增量 SQL 后验证 `/admin` 帖子/分类/用户管理，普通用户访问 `/api/admin/**` 返回 403
 - 执行 P4 增量 SQL 后验证多级评论、10 层上限、父评论删除整棵子树、旧评论 Delta 正常显示
+- 执行 P5 增量 SQL 后验证校园服务：通知列表/详情/置顶、课程表周视图/增删改查、图书馆搜索/详情/外链、管理端三个子 tab

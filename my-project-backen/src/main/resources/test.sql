@@ -178,4 +178,54 @@ INSERT INTO `db_topic_type` (`id`, `code`, `anonymous`, `name`, `desc`, `color`)
 (11, 'lost', 0, '失物招领', '丢了或捡到东西都可以发，找到后可标记「已找回」', '#e6a23c'),
 (12, 'confession', 1, '表白墙', '匿名表达心意，作者对其他人不可见', '#f56c6c');
 
+-- ----------------------------
+-- 校园服务：通知 / 我的课程表 / 在线图书馆
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `db_notice` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `title` varchar(120) NOT NULL,
+  `category` varchar(20) NOT NULL DEFAULT '教务',
+  `content` text NOT NULL,
+  `top` tinyint(1) NOT NULL DEFAULT 0,
+  `publisher` varchar(50) NOT NULL DEFAULT '教务处',
+  `publish_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_notice_list` (`top`, `publish_time`),
+  KEY `idx_notice_category` (`category`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `db_course` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `uid` int NOT NULL,
+  `name` varchar(80) NOT NULL,
+  `teacher` varchar(50) DEFAULT NULL,
+  `location` varchar(80) DEFAULT NULL,
+  `weekday` tinyint NOT NULL,
+  `start_section` tinyint NOT NULL,
+  `end_section` tinyint NOT NULL,
+  `weeks` varchar(40) DEFAULT NULL,
+  `color` varchar(20) DEFAULT '#409EFF',
+  `note` varchar(200) DEFAULT NULL,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_course_uid` (`uid`),
+  KEY `idx_course_weekday` (`weekday`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `db_library_resource` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `title` varchar(120) NOT NULL,
+  `author` varchar(80) DEFAULT NULL,
+  `category` varchar(20) NOT NULL DEFAULT '其他',
+  `cover` varchar(255) DEFAULT NULL,
+  `description` text,
+  `url` varchar(500) DEFAULT NULL,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_library_category` (`category`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

@@ -8,9 +8,10 @@ import {ElMessage} from "element-plus";
 import {
     Back,
     Bell,
-    ChatDotSquare, Collection, DataLine,
-    Document, Files,
-    Location, Lock, Message, Monitor,
+    Calendar,
+    ChatDotSquare, Collection,
+    Document,
+    Location, Lock, Message,
     Notification, Operation,
     Position,
     Search,
@@ -180,7 +181,7 @@ const searchInput = reactive({
                                     <el-icon>
                                         <position/>
                                     </el-icon>
-                                    <span><b>探索与发现</b></span>
+                                    <span><b>校园服务</b></span>
                                 </template>
                                 <el-menu-item index="/index/grade">
                                     <template #title>
@@ -190,36 +191,28 @@ const searchInput = reactive({
                                         <span>成绩查询</span>
                                     </template>
                                 </el-menu-item>
-                                <el-menu-item>
+                                <el-menu-item index="/index/notices">
                                     <template #title>
                                         <el-icon>
-                                            <Files/>
-                                        </el-icon>
-                                        <span>班级课程表</span>
-                                    </template>
-                                </el-menu-item>
-                                <el-menu-item>
-                                    <template #title>
-                                        <el-icon>
-                                            <Monitor/>
+                                            <notification/>
                                         </el-icon>
                                         <span>教务通知</span>
                                     </template>
                                 </el-menu-item>
-                                <el-menu-item>
+                                <el-menu-item index="/index/schedule">
                                     <template #title>
                                         <el-icon>
-                                            <Collection/>
+                                            <calendar/>
                                         </el-icon>
-                                        <span>在线图书馆</span>
+                                        <span>我的课程表</span>
                                     </template>
                                 </el-menu-item>
-                                <el-menu-item>
+                                <el-menu-item index="/index/library">
                                     <template #title>
                                         <el-icon>
-                                            <data-line/>
+                                            <collection/>
                                         </el-icon>
-                                        <span>预约教室</span>
+                                        <span>在线图书馆</span>
                                     </template>
                                 </el-menu-item>
                             </el-sub-menu>

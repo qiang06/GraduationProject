@@ -71,6 +71,36 @@ const router = createRouter({
                     meta: {title: '成绩查询'}
                 },
                 {
+                    path: 'notices',
+                    name: 'campus-notices',
+                    component: () => import('@/views/campus/NoticeList.vue'),
+                    meta: {title: '教务通知'}
+                },
+                {
+                    path: 'notices/:id',
+                    name: 'campus-notice-detail',
+                    component: () => import('@/views/campus/NoticeDetail.vue'),
+                    meta: {title: '通知详情'}
+                },
+                {
+                    path: 'schedule',
+                    name: 'campus-schedule',
+                    component: () => import('@/views/campus/ScheduleView.vue'),
+                    meta: {title: '我的课程表'}
+                },
+                {
+                    path: 'library',
+                    name: 'campus-library',
+                    component: () => import('@/views/campus/LibraryList.vue'),
+                    meta: {title: '在线图书馆'}
+                },
+                {
+                    path: 'library/:id',
+                    name: 'campus-library-detail',
+                    component: () => import('@/views/campus/LibraryDetail.vue'),
+                    meta: {title: '资源详情'}
+                },
+                {
                     path: 'collects',
                     name: 'collects',
                     component: () => import('@/views/forum/CollectList.vue'),
@@ -117,6 +147,12 @@ const router = createRouter({
                     name: 'admin-user',
                     component: () => import('@/views/admin/AdminUser.vue'),
                     meta: {title: '用户管理'}
+                },
+                {
+                    path: 'campus',
+                    name: 'admin-campus',
+                    component: () => import('@/views/admin/AdminCampus.vue'),
+                    meta: {title: '校园服务管理'}
                 }
             ]
         }

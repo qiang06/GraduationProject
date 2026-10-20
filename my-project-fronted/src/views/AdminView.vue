@@ -2,7 +2,7 @@
 import {useStore} from '@/store'
 import {apiAuthLogout} from '@/net/api'
 import router from '@/router'
-import {Back, ChatDotSquare, User} from '@element-plus/icons-vue'
+import {Back, ChatDotSquare, Collection, User} from '@element-plus/icons-vue'
 
 const store = useStore()
 
@@ -24,6 +24,10 @@ function logout() {
                     <el-menu-item index="/admin/user">
                         <el-icon><User/></el-icon>
                         用户管理
+                    </el-menu-item>
+                    <el-menu-item index="/admin/campus">
+                        <el-icon><Collection/></el-icon>
+                        校园服务
                     </el-menu-item>
                 </el-menu>
             </el-aside>
